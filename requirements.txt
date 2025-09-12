@@ -1,0 +1,23 @@
+# Core Dependencies
+numpy==1.26.4  # Fixed version for compatibility with PyTorch/Whisper
+openai-whisper==20231117
+anthropic>=0.18.0
+customtkinter==5.2.0
+
+# Audio Processing
+librosa>=0.10.0
+soundfile>=0.12.1
+pydub>=0.25.1
+ffmpeg-python>=0.2.0
+
+# Jupyter Support
+jupyter>=1.0.0
+ipykernel>=6.0.0
+
+# Data Processing
+pandas>=2.0.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+
+# Utilities
+python-dotenv>=1.0.0
