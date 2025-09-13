@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
+import { spawnPython } from '@/lib/python-env';
 
 export const runtime = 'nodejs'; // ensure NOT edge
 
@@ -37,25 +35,6 @@ interface SemanticSummaryResult {
   success?: boolean;
   summary?: string;
   error?: string;
-}
-
-function resolvePython() {
-  const fromEnv = process.env.PYTHON_BIN;
-  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
-
-  const guesses = [
-    '/usr/bin/python3',
-    '/usr/local/bin/python3',
-    '/opt/homebrew/bin/python3',
-    'python3',
-    'python',
-  ];
-  for (const g of guesses) {
-    try {
-      if (g.includes('/') && fs.existsSync(g)) return g;
-    } catch {}
-  }
-  return '/usr/bin/python3'; // Use absolute path that we know exists
 }
 
 function generateSemanticSummary(text: string, apiKey: string): Promise<SemanticSummaryResult> {
@@ -133,20 +112,7 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const pythonBin = resolvePython();
-    const pathPrefix = process.env.PATH_PREFIX || '/home/ubuntu/.local/bin';
-    const workspaceRoot = process.env.WORKSPACE_ROOT || '/workspace';
-
-    const proc = spawn(pythonBin, ['-c', pythonScript, text, apiKey], {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: workspaceRoot,
-      env: {
-        ...process.env,
-        PATH: `${pathPrefix}:${process.env.PATH || ''}`,
-        PYTHONPATH: `/home/ubuntu/.local/lib/python3.13/site-packages:${process.env.PYTHONPATH || ''}`,
-        HOME: '/home/ubuntu'
-      }
-    });
+    const proc = spawnPython(pythonScript, [text, apiKey]);
 
     let stdout = '';
     let stderr = '';
