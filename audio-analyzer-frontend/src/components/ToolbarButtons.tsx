@@ -18,7 +18,7 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
     }
   };
 
-  const exportText = (type: 'transcription' | 'result') => {
+  const exportText = async (type: 'transcription' | 'result') => {
     let content = '';
     let filename = '';
     
@@ -38,6 +38,12 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
       return;
     }
 
+    // Handle LaTeX PDF export specially
+    if (state.outputFormat === 'LaTeX PDF' && type === 'result') {
+      await exportAsPdf(content);
+      return;
+    }
+
     // Create and download file
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -50,6 +56,70 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
     URL.revokeObjectURL(url);
     
     updateState({ status: `${type} exported successfully` });
+  };
+
+  const exportAsPdf = async (latexContent: string) => {
+    updateState({ status: "Compiling PDF..." });
+    
+    try {
+      const response = await fetch('/api/latex', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ latexContent }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'PDF compilation failed');
+      }
+
+      const data = await response.json();
+      
+      // Convert base64 to blob and download
+      const pdfBlob = base64ToBlob(data.pdf, 'application/pdf');
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename || 'analysis.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      updateState({ status: "PDF exported successfully" });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      updateState({ 
+        status: `PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: error instanceof Error ? error.message : 'PDF export failed'
+      });
+      
+      // Fallback: offer to save as .tex file
+      if (confirm('PDF compilation failed. Would you like to save as LaTeX (.tex) file instead?')) {
+        const blob = new Blob([latexContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'analysis.tex';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        updateState({ status: "LaTeX file exported successfully" });
+      }
+    }
+  };
+
+  const base64ToBlob = (base64: string, mimeType: string) => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
   };
 
   const getFileExtension = () => {

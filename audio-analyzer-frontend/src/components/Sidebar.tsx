@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,22 +34,179 @@ export function Sidebar({ state, updateState }: SidebarProps) {
     }
   };
 
-  const handleRecordToggle = () => {
-    if (state.isRecording) {
-      // Stop recording logic would go here
-      updateState({
-        isRecording: false,
-        status: "Recording stopped",
+  const checkModelStatus = async (model: string) => {
+    try {
+      const response = await fetch(`/api/model?model=${model}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        updateState({ 
+          modelLoaded: data.loaded,
+          status: data.loaded ? `Model ${model} ready` : `Model ${model} not loaded`
+        });
+      } else {
+        console.error('Model check failed:', data.error);
+        updateState({ 
+          modelLoaded: false,
+          status: `Model check failed: ${data.error}`
+        });
+      }
+    } catch (error) {
+      console.error('Model check error:', error);
+      updateState({ 
+        modelLoaded: false,
+        status: 'Model check failed'
       });
+    }
+  };
+
+  const loadModel = async (model: string) => {
+    updateState({ 
+      modelLoaded: false,
+      status: `Loading ${model} model...`
+    });
+
+    try {
+      const response = await fetch('/api/model', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        updateState({ 
+          modelLoaded: true,
+          status: `Model ${model} loaded successfully`
+        });
+      } else {
+        throw new Error(data.error || 'Model loading failed');
+      }
+    } catch (error) {
+      console.error('Model loading error:', error);
+      updateState({ 
+        modelLoaded: false,
+        status: `Model loading failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  };
+
+  // Check model status when component mounts or model changes
+  React.useEffect(() => {
+    checkModelStatus(state.whisperModel);
+  }, [state.whisperModel]);
+
+  const handleModelChange = (value: string) => {
+    updateState({ whisperModel: value, modelLoaded: false });
+    // Model status will be checked by useEffect
+  };
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleRecordToggle = async () => {
+    if (state.isRecording) {
+      stopRecording();
     } else {
-      // Start recording logic would go here
+      await startRecording();
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        } 
+      });
+      
+      recordingChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/wav'
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(recordingChunksRef.current, { 
+          type: mediaRecorder.mimeType 
+        });
+        
+        // Create a file URL for the recording
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const filename = `recording_${Date.now()}.${mediaRecorder.mimeType.includes('webm') ? 'webm' : 'wav'}`;
+        
+        updateState({
+          recordedFilePath: audioUrl,
+          status: `Recording saved: ${filename}`,
+        });
+
+        // Clean up the media stream
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start(1000); // Collect data every second
+      
       updateState({
         isRecording: true,
         recordingDuration: 0,
         status: "Recording started...",
       });
+
+      // Start the timer
+      let duration = 0;
+      recordingTimerRef.current = setInterval(() => {
+        duration += 1;
+        updateState({ recordingDuration: duration });
+      }, 1000);
+
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+      updateState({
+        status: `Recording failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      });
     }
   };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && state.isRecording) {
+      mediaRecorderRef.current.stop();
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      
+      updateState({
+        isRecording: false,
+        status: "Processing recording...",
+      });
+    }
+  };
+
+  // Cleanup on unmount
+  React.useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      if (mediaRecorderRef.current && state.isRecording) {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const handleTranscribe = async () => {
     if (!state.audioFilePath) return;
@@ -91,6 +248,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         isTranscribing: false,
         progress: 100,
         status: "Transcription completed",
+        error: null,
       });
       
       // Reset progress after a delay
@@ -104,6 +262,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         isTranscribing: false,
         progress: 0,
         status: "Transcription failed",
+        error: error instanceof Error ? error.message : "Transcription failed",
       });
     }
   };
@@ -153,6 +312,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         isProcessing: false,
         progress: 100,
         status: "Processing completed",
+        error: null,
       });
 
       // Reset progress after a delay
@@ -166,6 +326,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         isProcessing: false,
         progress: 0,
         status: "Processing failed",
+        error: error instanceof Error ? error.message : "Processing failed",
       });
     }
   };
@@ -234,7 +395,12 @@ export function Sidebar({ state, updateState }: SidebarProps) {
             
             {state.recordedFilePath && (
               <Button
-                onClick={() => updateState({ audioFilePath: state.recordedFilePath })}
+                onClick={() => updateState({ 
+                  audioFilePath: state.recordedFilePath,
+                  audioFileName: `recording_${Date.now()}.webm`,
+                  transcribedText: "",
+                  status: "Using recording as input"
+                })}
                 className="w-full"
                 variant="secondary"
                 size="sm"
@@ -255,7 +421,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
               <Label htmlFor="model-select">Whisper Model</Label>
               <Select
                 value={state.whisperModel}
-                onValueChange={(value) => updateState({ whisperModel: value })}
+                onValueChange={handleModelChange}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -272,6 +438,15 @@ export function Sidebar({ state, updateState }: SidebarProps) {
                 <Badge variant={state.modelLoaded ? "default" : "secondary"}>
                   {state.modelLoaded ? "🟢 Ready" : "⚪ Not loaded"}
                 </Badge>
+                {!state.modelLoaded && (
+                  <Button
+                    onClick={() => loadModel(state.whisperModel)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    Load Model
+                  </Button>
+                )}
               </div>
             </div>
 

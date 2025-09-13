@@ -74,6 +74,7 @@ export function ProcessedResultTab({ state, updateState }: ProcessedResultTabPro
         currentHistoryIndex: newHistory.length - 1,
         isProcessing: false,
         status: "Custom prompt processed",
+        error: null,
       });
       
     } catch (error) {
@@ -81,6 +82,7 @@ export function ProcessedResultTab({ state, updateState }: ProcessedResultTabPro
       updateState({
         isProcessing: false,
         status: "Custom prompt processing failed",
+        error: error instanceof Error ? error.message : "Processing failed",
       });
     }
   };
