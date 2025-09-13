@@ -49,7 +49,6 @@ export function NewAudioDialog({
   const [preserveFormatting, setPreserveFormatting] = useState(true);
   
   // Time segment state
-  const [useFullAudio, setUseFullAudio] = useState(true);
   const [startTime, setStartTime] = useState("0");
   const [endTime, setEndTime] = useState("0");
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
@@ -89,10 +88,11 @@ export function NewAudioDialog({
       const audio = new Audio(url);
       audio.addEventListener('loadedmetadata', () => {
         const duration = audio.duration;
+        console.log('[DEBUG] NewAudioDialog - handleFileSelect - Audio duration:', duration);
         setAudioDuration(duration);
-        if (useFullAudio) {
-          setEndTime(duration.toString());
-        }
+        // Set end time to the full duration by default
+        setEndTime(duration.toString());
+        console.log('[DEBUG] NewAudioDialog - handleFileSelect - Set endTime to:', duration.toString());
       });
     }
   };
@@ -146,30 +146,16 @@ export function NewAudioDialog({
     setLocalModelLoaded(false);
   };
 
-  const handleUseFullAudioChange = (checked: boolean) => {
-    setUseFullAudio(checked);
-    if (checked && audioDuration) {
-      setStartTime("0");
-      setEndTime(audioDuration.toString());
-    }
-  };
-
   const handleTimeChange = (field: 'start' | 'end', value: string) => {
+    console.log('[DEBUG] NewAudioDialog - handleTimeChange:', { field, value });
     if (field === 'start') {
       setStartTime(value);
     } else {
       setEndTime(value);
     }
-    
-    // If user manually changes time, uncheck full audio
-    if (useFullAudio) {
-      setUseFullAudio(false);
-    }
   };
 
   const validateTimeSegment = (): boolean => {
-    if (useFullAudio) return true;
-    
     const start = parseFloat(startTime);
     const end = parseFloat(endTime);
     
@@ -281,6 +267,14 @@ export function NewAudioDialog({
   }, [isRecording]);
 
   const handleCreate = () => {
+    // Debug: Log time segment values before passing to main state
+    console.log('[DEBUG] NewAudioDialog - handleCreate - Time segment values:', {
+      startTime: startTime,
+      endTime: endTime,
+      startTimeParsed: parseFloat(startTime) || 0,
+      endTimeParsed: parseFloat(endTime) || 0
+    });
+    
     // Update the main state with the dialog values
     updateState({
       audioFilePath: localAudioFile,
@@ -298,6 +292,8 @@ export function NewAudioDialog({
       targetLanguage,
       translationStyle,
       preserveFormatting,
+      startTime: parseFloat(startTime) || 0,
+      endTime: parseFloat(endTime) || 0,
     });
     onCreateAudio();
     onOpenChange(false);
@@ -381,60 +377,43 @@ export function NewAudioDialog({
                   <div>
                     <Label>Time Segment Selection</Label>
                     
-                    <div className="flex items-center space-x-2 mt-2">
-                      <input
-                        type="checkbox"
-                        id="use-full-audio"
-                        checked={useFullAudio}
-                        onChange={(e) => handleUseFullAudioChange(e.target.checked)}
-                        className="rounded"
-                      />
-                      <Label htmlFor="use-full-audio" className="text-sm">
-                        Use full audio
-                      </Label>
-                    </div>
-                    
-                    {!useFullAudio && (
-                      <div className="grid grid-cols-2 gap-2 mt-3">
-                        <div>
-                          <Label className="text-xs">Start (seconds)</Label>
-                          <Input
-                            type="number"
-                            value={startTime}
-                            onChange={(e) => handleTimeChange('start', e.target.value)}
-                            placeholder="0"
-                            className="mt-1"
-                            min="0"
-                            step="0.1"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">End (seconds)</Label>
-                          <Input
-                            type="number"
-                            value={endTime}
-                            onChange={(e) => handleTimeChange('end', e.target.value)}
-                            placeholder="0"
-                            className="mt-1"
-                            min="0"
-                            step="0.1"
-                          />
-                        </div>
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <div>
+                        <Label className="text-xs">Start (seconds)</Label>
+                        <Input
+                          type="number"
+                          value={startTime}
+                          onChange={(e) => handleTimeChange('start', e.target.value)}
+                          placeholder="0"
+                          className="mt-1"
+                          min="0"
+                          step="0.1"
+                        />
                       </div>
-                    )}
+                      <div>
+                        <Label className="text-xs">End (seconds)</Label>
+                        <Input
+                          type="number"
+                          value={endTime}
+                          onChange={(e) => handleTimeChange('end', e.target.value)}
+                          placeholder="0"
+                          className="mt-1"
+                          min="0"
+                          step="0.1"
+                        />
+                      </div>
+                    </div>
                     
                     {audioDuration && (
                       <div className="mt-2 space-y-1">
                         <p className="text-xs text-muted-foreground">
                           Valid range: 0 - {audioDuration.toFixed(1)}s ({formatDuration(audioDuration)})
                         </p>
-                        {!useFullAudio && (
-                          <p className="text-xs text-muted-foreground">
-                            Duration: {validateTimeSegment() ? 
-                              formatDuration(parseFloat(endTime) - parseFloat(startTime)) : 
-                              'Invalid range'}
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Duration: {validateTimeSegment() ? 
+                            formatDuration(parseFloat(endTime) - parseFloat(startTime)) : 
+                            'Invalid range'}
+                        </p>
                       </div>
                     )}
                   </div>

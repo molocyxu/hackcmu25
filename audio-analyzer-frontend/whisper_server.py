@@ -1,5 +1,5 @@
 import sys
-import json
+import json as json_module
 import whisper
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -23,7 +23,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', 0))
             raw_data = self.rfile.read(length)
             print(f"[WHISPER_SERVER] Raw request data: {raw_data}")
-            data = json.loads(raw_data)
+            data = json_module.loads(raw_data)
             print(f"[WHISPER_SERVER] Parsed JSON: {data}")
         except Exception as e:
             print(f"[WHISPER_SERVER] Failed to parse request: {e}")
@@ -31,7 +31,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             resp = {"success": False, "error": f"Bad request: {str(e)}"}
             print(f"[WHISPER_SERVER] Sending response [400]: {resp}")
-            self.wfile.write(json.dumps(resp).encode())
+            self.wfile.write(json_module.dumps(resp).encode())
             return
 
         if self.path == '/load':
@@ -43,7 +43,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 resp = {'loaded': True}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
                 print(f"[WHISPER_SERVER] Sending response [200]: {resp}")
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /load: {e}")
@@ -51,21 +51,91 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 resp = {'loaded': False, 'error': str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/transcribe':
             try:
                 file_path = data.get('audio_path') or data.get('audioPath')
                 if file_path is None:
                     raise ValueError("No audio_path or audioPath provided in request")
                 model_name = data.get('model', 'base')
-                print(f"[WHISPER_SERVER] /transcribe model_name: {model_name}, file_path: {file_path}")
+                start_time = data.get('startTime', 0)
+                end_time = data.get('endTime', 0)
+                
+                print(f"[WHISPER_SERVER] /transcribe model_name: {model_name}, file_path: {file_path}, start_time: {start_time}, end_time: {end_time}")
                 load_model(model_name)
-                result = MODEL.transcribe(file_path)
+                
+                # Handle time segment extraction if needed
+                if start_time > 0 or end_time > 0:
+                    # Use time segment - need to extract the audio segment first
+                    import tempfile
+                    import subprocess
+                    
+                    # Create temporary file for segment
+                    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+                        temp_path = temp_file.name
+                    
+                    try:
+                        # Extract segment using ffmpeg
+                        duration = end_time - start_time if end_time > start_time else None
+                        cmd = ['ffmpeg', '-i', file_path]
+                        
+                        if start_time > 0:
+                            cmd.extend(['-ss', str(start_time)])
+                        
+                        if duration:
+                            cmd.extend(['-t', str(duration)])
+                        
+                        cmd.extend([
+                            '-acodec', 'pcm_s16le',
+                            '-ar', '16000',
+                            '-ac', '1',
+                            '-y',  # Overwrite output file
+                            temp_path
+                        ])
+                        
+                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                        
+                        if result.returncode != 0:
+                            print(f"[WHISPER_SERVER] FFmpeg error: {result.stderr}")
+                            # Fallback to full file transcription
+                            transcription_result = MODEL.transcribe(file_path)
+                        else:
+                            # Transcribe the extracted segment with word timestamps
+                            transcription_result = MODEL.transcribe(temp_path, word_timestamps=True)
+                        
+                    finally:
+                        # Clean up temporary file
+                        if os.path.exists(temp_path):
+                            try:
+                                os.remove(temp_path)
+                            except:
+                                pass
+                else:
+                    # Transcribe full audio with word timestamps
+                    transcription_result = MODEL.transcribe(file_path, word_timestamps=True)
+                
+                # Extract word timestamps if available
+                word_timestamps = []
+                if 'segments' in transcription_result:
+                    for segment in transcription_result['segments']:
+                        if 'words' in segment:
+                            for word_info in segment['words']:
+                                word_timestamps.append({
+                                    'word': word_info.get('word', '').strip(),
+                                    'start': word_info.get('start', 0),
+                                    'end': word_info.get('end', 0)
+                                })
+                
                 self.send_response(200)
                 self.end_headers()
-                resp = {'success': True, 'text': result['text'], 'language': result.get('language', 'en')}
+                resp = {
+                    'success': True, 
+                    'text': transcription_result['text'], 
+                    'language': transcription_result.get('language', 'en'),
+                    'word_timestamps': word_timestamps
+                }
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
                 print(f"[WHISPER_SERVER] Sending response [200]: {resp}")
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /transcribe: {e}")
@@ -73,7 +143,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 resp = {'success': False, 'error': str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/translate':
             try:
                 text = data.get('text')
@@ -135,7 +205,7 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "translation": result_text}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
                 print(f"[WHISPER_SERVER] Sending response [{self.command}]: {resp}")
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /translate: {e}")
@@ -143,7 +213,7 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/summary':
             print(f"[WHISPER_SERVER] Handling /summary endpoint")
             try:
@@ -173,7 +243,7 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "summary": summary_text}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
                 print(f"[WHISPER_SERVER] Sending response [200]: {resp}")
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /summary: {e}")
@@ -181,7 +251,7 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Sending response [500]: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/semantic-summary':
             try:
                 text = data.get('text')
@@ -222,14 +292,14 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "summary": s}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /semantic-summary: {e}")
                 self.send_response(500)
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/clean':
             try:
                 text = data.get('text')
@@ -252,14 +322,14 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "cleaned": cleaned_text}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /clean: {e}")
                 self.send_response(500)
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/network':
             try:
                 text = data.get('text')
@@ -271,14 +341,14 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "message": "Network plot generated (dummy)", "clusters": clusters, "wordCount": len(text.split())}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /network: {e}")
                 self.send_response(500)
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/latex':
             try:
                 latex_content = data.get('latexContent')
@@ -291,14 +361,14 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "pdf": pdf, "filename": "analysis.pdf"}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /latex: {e}")
                 self.send_response(500)
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         elif self.path == '/custom-prompt':
             try:
                 text = data.get('text')
@@ -324,21 +394,21 @@ Text to translate:
                 self.end_headers()
                 resp = {"success": True, "result": result_text}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /custom-prompt: {e}")
                 self.send_response(500)
                 self.end_headers()
                 resp = {"success": False, "error": str(e)}
                 print(f"[WHISPER_SERVER] Response: {resp}")
-                self.wfile.write(json.dumps(resp).encode())
+                self.wfile.write(json_module.dumps(resp).encode())
         else:
             print(f"[WHISPER_SERVER] Unknown endpoint: {self.path}")
             self.send_response(404)
             self.end_headers()
             resp = {"success": False, "error": f"Unknown endpoint: {self.path}"}
             print(f"[WHISPER_SERVER] Sending response [404]: {resp}")
-            self.wfile.write(json.dumps(resp).encode())
+            self.wfile.write(json_module.dumps(resp).encode())
 
 def run():
     server = HTTPServer(('localhost', 8765), Handler)

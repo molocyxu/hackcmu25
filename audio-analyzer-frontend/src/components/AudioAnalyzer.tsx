@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -8,6 +9,20 @@ import { TranscriptionTab } from "./TranscriptionTab";
 import { ProcessedResultTab } from "./ProcessedResultTab";
 import { ToolbarButtons } from "./ToolbarButtons";
 import { NewAudioDialog } from "./NewAudioDialog";
+import logoIcon from "@/app/logo.ico";
+
+export interface WordTimestamp {
+  word: string;
+  start: number;
+  end: number;
+}
+
+export interface SearchResult {
+  word: string;
+  start: number;
+  end: number;
+  index: number;
+}
 
 export interface AudioAnalyzerState {
   audioFilePath: string | null;
@@ -34,6 +49,11 @@ export interface AudioAnalyzerState {
   targetLanguage: string;
   translationStyle: string;
   preserveFormatting: boolean;
+  startTime: number;
+  endTime: number;
+  wordTimestamps: WordTimestamp[];
+  searchResults: SearchResult[];
+  searchTerm: string;
 }
 
 export function AudioAnalyzer() {
@@ -62,17 +82,39 @@ export function AudioAnalyzer() {
     targetLanguage: "None",
     translationStyle: "Natural",
     preserveFormatting: true,
+    startTime: 0,
+    endTime: 0,
+    wordTimestamps: [],
+    searchResults: [],
+    searchTerm: "",
   });
 
   const [isNewAudioDialogOpen, setIsNewAudioDialogOpen] = useState(false);
 
   const updateState = (updates: Partial<AudioAnalyzerState>) => {
+    // Debug: Log when time segment values are updated
+    if ('startTime' in updates || 'endTime' in updates) {
+      console.log('[DEBUG] AudioAnalyzer - updateState - Time segment update:', {
+        startTime: updates.startTime,
+        endTime: updates.endTime,
+        currentStartTime: state.startTime,
+        currentEndTime: state.endTime
+      });
+    }
     setState((prev) => ({ ...prev, ...updates }));
   };
 
   // Add functions needed from the old sidebar
   const handleTranscribe = async () => {
     if (!state.audioFilePath) return;
+    
+    // Debug: Log current state time segment values before transcription
+    console.log('[DEBUG] AudioAnalyzer - handleTranscribe - Current state time segment:', {
+      startTime: state.startTime,
+      endTime: state.endTime,
+      audioFilePath: state.audioFilePath,
+      whisperModel: state.whisperModel
+    });
     
     updateState({
       isTranscribing: true,
@@ -100,13 +142,19 @@ export function AudioAnalyzer() {
       
       updateState({ progress: 50 });
 
+      // Debug: Log the payload being sent to the transcription API
+      const transcribePayload = {
+        audioPath: realFilePath,
+        model: state.whisperModel,
+        startTime: state.startTime,
+        endTime: state.endTime,
+      };
+      console.log('[DEBUG] AudioAnalyzer - handleTranscribe - API payload:', transcribePayload);
+
       const response = await fetch('/api/transcribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          audioPath: realFilePath,
-          model: state.whisperModel,
-        }),
+        body: JSON.stringify(transcribePayload),
       });
 
       if (!response.ok) {
@@ -117,6 +165,7 @@ export function AudioAnalyzer() {
       
       updateState({
         transcribedText: data.text,
+        wordTimestamps: data.word_timestamps || [],
         isTranscribing: false,
         progress: 100,
         status: "Transcription completed",
@@ -397,47 +446,10 @@ export function AudioAnalyzer() {
     }
   };
 
-  const handleCustomPrompt = async () => {
-    if (!state.transcribedText || !state.apiKey || !state.customPrompt) return;
-    updateState({
-      isProcessing: true,
-      progress: 30,
-      status: "Processing custom prompt...",
-    });
-    try {
-      const response = await fetch('/api/custom-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: state.transcribedText,
-          apiKey: state.apiKey,
-          customPrompt: state.customPrompt,
-        }),
-      });
-      if (!response.ok) throw new Error('Custom prompt failed');
-      const data = await response.json();
-      const newHistory = [...state.processHistory, {
-        prompt: state.customPrompt,
-        result: data.result
-      }];
-      updateState({
-        processHistory: newHistory,
-        currentHistoryIndex: newHistory.length - 1,
-        isProcessing: false,
-        progress: 100,
-        status: "Custom prompt processed",
-        error: null,
-      });
-      setTimeout(() => { updateState({ progress: 0 }); }, 2000);
-    } catch (error) {
-      console.error('Custom prompt error:', error);
-      updateState({
-        isProcessing: false,
-        progress: 0,
-        status: "Custom prompt failed",
-        error: error instanceof Error ? error.message : "Custom prompt failed",
-      });
-    }
+  const formatTimestamp = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const canTranscribe = state.audioFilePath && state.modelLoaded && !state.isTranscribing;
@@ -448,13 +460,19 @@ export function AudioAnalyzer() {
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">
-              Audio Analyzer
-            </h1>
-            <p className="text-lg text-muted-foreground mt-2">
-              Transcribe and analyze audio with AI
-            </p>
+          <div className="flex items-center gap-4">
+            <Image 
+              src={logoIcon}
+              alt="DeScribe Logo"
+              width={144}
+              height={144}
+              className="rounded-lg"
+            />
+            <div>
+              <p className="text-lg text-muted-foreground">
+                Transcribe and analyze audio with AI
+              </p>
+            </div>
           </div>
           <Button
             onClick={() => setIsNewAudioDialogOpen(true)}
@@ -492,6 +510,9 @@ export function AudioAnalyzer() {
                     <h3 className="font-semibold">{state.audioFileName}</h3>
                     <p className="text-sm text-muted-foreground">
                       Model: {state.whisperModel} • {state.modelLoaded ? "Ready" : "Not loaded"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Time: {state.startTime}s - {state.endTime}s
                     </p>
                   </div>
                 </div>
@@ -630,25 +651,6 @@ export function AudioAnalyzer() {
                 </div>
               </Card>
             </div>
-
-            {/* Custom Prompt Section */}
-            <Card className="gradient-card border-border/50 mt-6 p-4">
-              <h3 className="text-lg font-semibold mb-2">Custom Prompt</h3>
-              <textarea
-                className="w-full border rounded p-2 mb-2"
-                rows={3}
-                value={state.customPrompt}
-                onChange={e => updateState({ customPrompt: e.target.value })}
-                placeholder="Enter your custom prompt. Use {text} to insert the transcript."
-              />
-              <Button
-                onClick={handleCustomPrompt}
-                disabled={!canProcess || !state.customPrompt}
-                className="btn-primary"
-              >
-                🧠 Process Custom Prompt
-              </Button>
-            </Card>
 
             {/* Bottom Toolbar */}
             <Card className="gradient-card border-border/50 p-4">
