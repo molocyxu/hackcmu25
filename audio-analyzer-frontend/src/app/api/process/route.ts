@@ -187,7 +187,7 @@ function processWithClaude(text: string, prompt: string, apiKey: string, wordLim
       "    print(json.dumps(result))"
     ].join("\\n");
 
-    const python = spawn('python3', ['-c', pythonScript, text, prompt, apiKey, wordLimit.toString(), outputFormat], {
+    const python = spawn('/workspace/venv/bin/python3', ['-c', pythonScript, text, prompt, apiKey, wordLimit.toString(), outputFormat], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 

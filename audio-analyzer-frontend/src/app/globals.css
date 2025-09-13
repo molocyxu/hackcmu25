@@ -9,8 +9,8 @@
   --color-popover: 240 10% 10%;
   --color-popover-foreground: 240 10% 95%;
   
-  /* Purple-Blue Gradient Primary */
-  --color-primary: 262 90% 65%;
+  /* Metallic Grey Primary */
+  --color-primary: 220 10% 60%;
   --color-primary-foreground: 240 10% 95%;
   
   /* Subtle Secondary Colors */
@@ -18,8 +18,8 @@
   --color-secondary-foreground: 240 10% 85%;
   --color-muted: 240 10% 14%;
   --color-muted-foreground: 240 5% 55%;
-  --color-accent: 262 50% 20%;
-  --color-accent-foreground: 262 90% 85%;
+  --color-accent: 220 10% 20%;
+  --color-accent-foreground: 220 10% 85%;
   
   /* Status Colors */
   --color-destructive: 0 75% 60%;
@@ -32,11 +32,11 @@
   /* Borders and Inputs */
   --color-border: 240 10% 20%;
   --color-input: 240 10% 16%;
-  --color-ring: 262 90% 65%;
+  --color-ring: 220 10% 60%;
   
   /* Chart Colors - Modern Gradient Palette */
-  --color-chart-1: 262 90% 65%;
-  --color-chart-2: 200 90% 60%;
+  --color-chart-1: 220 10% 60%;
+  --color-chart-2: 200 20% 55%;
   --color-chart-3: 142 76% 50%;
   --color-chart-4: 38 92% 60%;
   --color-chart-5: 320 85% 65%;
@@ -53,15 +53,15 @@
   --color-popover: 0 0% 100%;
   --color-popover-foreground: 240 10% 15%;
   
-  --color-primary: 262 90% 55%;
+  --color-primary: 220 10% 55%;
   --color-primary-foreground: 240 10% 95%;
   
   --color-secondary: 240 10% 95%;
   --color-secondary-foreground: 240 10% 15%;
   --color-muted: 240 10% 96%;
   --color-muted-foreground: 240 5% 45%;
-  --color-accent: 262 30% 92%;
-  --color-accent-foreground: 262 90% 25%;
+  --color-accent: 220 10% 92%;
+  --color-accent-foreground: 220 10% 25%;
   
   --color-destructive: 0 75% 50%;
   --color-destructive-foreground: 240 10% 95%;
@@ -72,10 +72,10 @@
   
   --color-border: 240 10% 90%;
   --color-input: 240 10% 95%;
-  --color-ring: 262 90% 55%;
+  --color-ring: 220 10% 55%;
   
-  --color-chart-1: 262 90% 55%;
-  --color-chart-2: 200 90% 50%;
+  --color-chart-1: 220 10% 55%;
+  --color-chart-2: 200 20% 50%;
   --color-chart-3: 142 76% 40%;
   --color-chart-4: 38 92% 50%;
   --color-chart-5: 320 85% 55%;
@@ -91,7 +91,7 @@
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
     font-variation-settings: 'opsz' 32;
-    background: linear-gradient(135deg, hsl(var(--color-background)) 0%, hsl(240 10% 6%) 100%);
+    background: linear-gradient(135deg, hsl(240 10% 12%) 0%, hsl(240 10% 9%) 100%);
     min-height: 100vh;
   }
   
@@ -103,8 +103,8 @@
   /* Custom gradient backgrounds for cards */
   .gradient-card {
     background: linear-gradient(135deg, 
-      hsl(var(--color-card)) 0%, 
-      hsl(240 10% 12%) 100%);
+      hsl(240 10% 11%) 0%, 
+      hsl(240 10% 9%) 100%);
     border: 1px solid hsl(var(--color-border));
     backdrop-filter: blur(10px);
   }
@@ -122,8 +122,8 @@
   .btn-modern {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: linear-gradient(135deg, 
-      hsl(var(--color-primary)) 0%, 
-      hsl(262 90% 55%) 100%);
+      hsl(220 15% 55%) 0%, 
+      hsl(220 10% 45%) 100%);
   }
   
   .btn-modern:hover {
@@ -143,15 +143,15 @@
   
   ::-webkit-scrollbar-thumb {
     background: linear-gradient(135deg, 
-      hsl(var(--color-primary)) 0%, 
-      hsl(262 90% 55%) 100%);
+      hsl(220 15% 55%) 0%, 
+      hsl(220 10% 45%) 100%);
     border-radius: 4px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, 
-      hsl(var(--color-primary)) 0%, 
-      hsl(262 90% 70%) 100%);
+      hsl(220 15% 60%) 0%, 
+      hsl(220 10% 50%) 100%);
   }
   
   /* Animated background pattern */
