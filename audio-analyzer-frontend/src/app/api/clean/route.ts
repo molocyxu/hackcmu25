@@ -1,53 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { spawn } from 'child_process';
+
+let whisperProcess: any = null;
+let modelLoaded = false;
+let currentModel = 'base';
+
+console.log('[DEBUG] PYTHON_BIN at module load:', process.env.PYTHON_BIN);
+console.log('[DEBUG] process.cwd():', process.cwd());
+console.log('[DEBUG] PYTHON_BIN:', process.env.PYTHON_BIN);
+
+
+function startWhisperProcess(model: string) {
+  const pythonPath = process.env.PYTHON_BIN || 'python3';
+  console.log('[DEBUG] PYTHON_BIN:', process.env.PYTHON_BIN);
+  const scriptPath = 'whisper_server.py';
+  const cwd = process.cwd();
+
+  console.log(`[DEBUG] Starting Whisper process`);
+  console.log(`[DEBUG] Python path: ${pythonPath}`);
+  console.log(`[DEBUG] Script path: ${scriptPath}`);
+  console.log(`[DEBUG] Working directory: ${cwd}`);
+  console.log(`[DEBUG] Model: ${model}`);
+
+  if (whisperProcess && currentModel === model) {
+    console.log('[DEBUG] Whisper process already running for this model.');
+    return;
+  }
+  if (whisperProcess) {
+    whisperProcess.kill();
+    whisperProcess = null;
+    modelLoaded = false;
+    console.log('[DEBUG] Killed previous Whisper process.');
+  }
+  try {
+    whisperProcess = spawn(
+      pythonPath,
+      [scriptPath, model],
+      { cwd }
+    );
+    whisperProcess.on('error', (err: any) => {
+      console.error('[ERROR] Failed to spawn Whisper process:', err);
+    });
+    whisperProcess.stdout.on('data', (data: Buffer) => {
+      console.log('[Whisper STDOUT]', data.toString());
+    });
+    whisperProcess.stderr.on('data', (data: Buffer) => {
+      console.error('[Whisper STDERR]', data.toString());
+    });
+    currentModel = model;
+    modelLoaded = true;
+    console.log('[DEBUG] Whisper process started.');
+  } catch (err) {
+    console.error('[ERROR] Exception while starting Whisper process:', err);
+    throw err;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const model = searchParams.get('model') || 'base';
+  return NextResponse.json({ loaded: modelLoaded && currentModel === model });
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, apiKey } = await request.json();
+    const { model } = await request.json();
+    console.log(`[DEBUG] /api/model POST called with model: ${model}`);
+    console.log('[DEBUG] PYTHON_BIN in POST:', process.env.PYTHON_BIN);
 
-    if (!text) {
-      return NextResponse.json({ error: 'Text is required' }, { status: 400 });
+    startWhisperProcess(model);
+
+    // Wait a short time to allow process to start (optional, for demonstration)
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    if (!modelLoaded || currentModel !== model) {
+      throw new Error('Model loading failed');
     }
 
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key is required' }, { status: 400 });
-    }
-
-    const anthropic = new Anthropic({
-      apiKey: apiKey,
+    return NextResponse.json({
+      model: model,
+      loaded: true,
+      message: 'Model loaded successfully'
     });
-
-    const prompt = `Clean the following transcribed text by:
-1. Correcting any obvious transcription errors or strange words
-2. Fixing grammar and punctuation while preserving the original meaning
-3. Removing filler words (um, uh, etc.) where appropriate
-4. Making the text flow naturally as written prose
-5. DO NOT summarize or remove content - just clean and correct
-
-Return ONLY the cleaned text without any commentary or explanations.
-
-Text to clean:
-${text}`;
-
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 4000,
-      temperature: 0.2,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const cleanedText = response.content[0].type === 'text' ? response.content[0].text : '';
-
-    return NextResponse.json({ 
-      result: cleanedText,
-      status: 'success'
-    });
-
   } catch (error) {
-    console.error('Clean text error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to clean text' },
-      { status: 500 }
-    );
+    console.error('Model loading error:', error);
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Model loading failed' 
+    }, { status: 500 });
   }
 }

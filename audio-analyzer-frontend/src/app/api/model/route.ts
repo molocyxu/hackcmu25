@@ -110,15 +110,22 @@ if __name__ == "__main__":
     let stdout = '';
     let stderr = '';
 
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
+    if (proc.stdout) {
+      proc.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+    }
 
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
+    if (proc.stderr) {
+      proc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+    }
 
     proc.on('close', (code) => {
+      console.log(`[DEBUG] Python process closed with code: ${code}`);
+      console.log(`[DEBUG] Python stdout:`, stdout);
+      console.log(`[DEBUG] Python stderr:`, stderr);
       if (code !== 0) {
         console.error('Python script error:', stderr);
         resolve({
@@ -189,13 +196,17 @@ if __name__ == "__main__":
     let stdout = '';
     let stderr = '';
 
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
+    if (proc.stdout) {
+      proc.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+    }
 
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
+    if (proc.stderr) {
+      proc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+    }
 
     proc.on('close', (code) => {
       if (code !== 0) {

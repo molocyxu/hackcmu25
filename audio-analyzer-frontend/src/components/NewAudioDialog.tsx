@@ -1,5 +1,6 @@
 "use client";
 
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,28 +113,26 @@ export function NewAudioDialog({
   };
 
   const loadModel = async (model: string) => {
-    setLocalModelLoaded(false);
-    
-    try {
-      const response = await fetch('/api/model', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ model }),
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        setLocalModelLoaded(true);
-      } else {
-        throw new Error(data.error || 'Model loading failed');
-      }
-    } catch {
-      setLocalModelLoaded(false);
+  setLocalModelLoaded(false);
+  try {
+    const response = await fetch('/api/model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    const data = await response.json();
+    console.log('[DEBUG] loadModel response:', data);
+    if (response.ok && data.loaded) {
+      setLocalModelLoaded(true);
+    } else {
+      console.error('[DEBUG] Model load failed:', data.error);
+      throw new Error(data.error || 'Model loading failed');
     }
-  };
+  } catch (err) {
+    console.error('[DEBUG] loadModel network error:', err);
+    setLocalModelLoaded(false);
+  }
+};
 
   // Check model status when model changes
   React.useEffect(() => {
@@ -299,7 +298,7 @@ export function NewAudioDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
             New Audio Analysis
@@ -717,13 +716,31 @@ export function NewAudioDialog({
           >
             Cancel
           </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={!canCreate}
-            className="btn-modern"
-          >
-            Create
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    disabled={!canCreate}
+                    className="btn-modern"
+                    onClick={handleCreate}
+                    style={!canCreate ? { pointerEvents: "none" } : {}}
+                  >
+                    Create
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!canCreate && (
+                <TooltipContent>
+                  {!localModelLoaded
+                    ? "Model is not loaded. Please load a model first."
+                    : !(localAudioFile || localRecordedFile)
+                    ? "Please upload or record an audio file."
+                    : ""}
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </DialogContent>
     </Dialog>

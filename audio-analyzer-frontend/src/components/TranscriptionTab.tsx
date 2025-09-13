@@ -12,7 +12,12 @@ interface TranscriptionTabProps {
 
 export function TranscriptionTab({ state, updateState }: TranscriptionTabProps) {
   const wordCount = state.transcribedText ? state.transcribedText.split(' ').filter(word => word.length > 0).length : 0;
-  const charCount = state.transcribedText.length;
+  {state.transcribedText && state.transcribedText.length > 0 ? (
+    <div>{state.transcribedText}</div>
+  ) : (
+    <div>No transcription available.</div>
+  )}
+  const charCount = state.transcribedText ? state.transcribedText.length : 0;
 
   return (
     <Card className="h-full flex flex-col">

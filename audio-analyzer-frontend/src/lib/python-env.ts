@@ -11,7 +11,7 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
   // First check for explicit environment variable
   const fromEnv = process.env.PYTHON_BIN;
   let pythonBin = '';
-  
+
   if (fromEnv && fs.existsSync(fromEnv)) {
     pythonBin = fromEnv;
   } else {
@@ -30,7 +30,7 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
       }
     }
     
-    // Fall back to system Python
+    // Improved fallback: check for common system Python executables
     if (!pythonBin) {
       const guesses = [
         '/usr/bin/python3',
@@ -41,13 +41,17 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
       ];
       for (const g of guesses) {
         try {
-          if (g.includes('/') && fs.existsSync(g)) {
+          // Try to spawn the python binary to check if it works
+          if (
+            (g.includes('/') && fs.existsSync(g)) ||
+            (!g.includes('/') && require('child_process').spawnSync(g, ['--version']).status === 0)
+          ) {
             pythonBin = g;
             break;
           }
         } catch {}
       }
-      if (!pythonBin) pythonBin = '/usr/bin/python3';
+      if (!pythonBin) pythonBin = 'python3'; // Final fallback
     }
   }
   
@@ -67,13 +71,21 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
     pythonPath = `/home/ubuntu/.local/lib/python3.13/site-packages:${pythonPath}`;
   }
   
-  const env = {
+  // Ensure all env values are strings
+  const rawEnv: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${pathPrefix}:${process.env.PATH || ''}`,
     PYTHONPATH: pythonPath,
-    HOME: process.env.HOME || '/home/ubuntu'
+    HOME: process.env.HOME || '/home/ubuntu',
+    NODE_ENV: (process.env.NODE_ENV as 'development' | 'production' | 'test') || 'development'
   };
-  
+
+  const env: Record<string, string> = Object.fromEntries(
+    Object.entries(rawEnv)
+      .filter(([_, v]) => typeof v === 'string' && v !== undefined)
+      .map(([k, v]) => [k, v as string])
+  );
+
   return {
     pythonBin,
     pythonPath,
@@ -87,12 +99,12 @@ export function spawnPython(
   options: Partial<SpawnOptions> = {}
 ) {
   const config = resolvePythonEnvironment();
-  const workspaceRoot = process.env.WORKSPACE_ROOT || '/workspace';
+  const workspaceRoot = process.cwd();
   
   return spawn(config.pythonBin, ['-c', script, ...args], {
     stdio: ['pipe', 'pipe', 'pipe'],
     cwd: workspaceRoot,
-    env: config.env,
+    env: config.env as NodeJS.ProcessEnv,
     ...options
   });
 }

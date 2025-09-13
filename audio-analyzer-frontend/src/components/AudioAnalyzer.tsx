@@ -75,21 +75,32 @@ export function AudioAnalyzer() {
     });
 
     try {
-      const formData = new FormData();
-      
+      if (!state.audioFilePath) return;
+      let realFilePath = state.audioFilePath;
       if (state.audioFilePath.startsWith('blob:')) {
         const response = await fetch(state.audioFilePath);
         const blob = await response.blob();
+        const formData = new FormData();
         formData.append('audio', blob, state.audioFileName);
-      }
-      
-      formData.append('model', state.whisperModel);
+
+        // Upload to your backend (create an /api/upload endpoint)
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const uploadData = await uploadResponse.json();
+        realFilePath = uploadData.filePath; // The backend should return the saved file path
+  }
       
       updateState({ progress: 50 });
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audioPath: realFilePath,
+          model: state.whisperModel,
+        }),
       });
 
       if (!response.ok) {
@@ -99,7 +110,7 @@ export function AudioAnalyzer() {
       const data = await response.json();
       
       updateState({
-        transcribedText: data.transcription,
+        transcribedText: data.text,
         isTranscribing: false,
         progress: 100,
         status: "Transcription completed",
