@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { cleanTextForExport } from "@/lib/utils";
 import { AudioAnalyzerState } from "./AudioAnalyzer";
 
 interface ToolbarButtonsProps {
@@ -44,8 +45,11 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
       return;
     }
 
+    // Clean text before creating file
+    const cleanedContent = cleanTextForExport(content);
+    
     // Create and download file
-    const blob = new Blob([content], { type: 'text/plain' });
+    const blob = new Blob([cleanedContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
