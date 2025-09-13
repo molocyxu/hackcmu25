@@ -194,6 +194,28 @@
     transform: translateY(-1px);
     box-shadow: 0 10px 25px color-mix(in srgb, var(--primary) 40%, transparent);
     background: color-mix(in srgb, var(--primary) 90%, black);
+    color: var(--primary-foreground);
+  }
+
+  /* Ensure button text is always readable */
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--primary) 85%, black);
+    color: var(--primary-foreground);
+  }
+
+  .btn-secondary {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+
+  .btn-secondary:hover {
+    background: color-mix(in srgb, var(--secondary) 85%, black);
+    color: var(--secondary-foreground);
   }
   
   /* Sleek scrollbar */
