@@ -20,3 +20,5 @@ logs/
 # Other common ignores
 *.pyc
 __pycache__/
+
+.env
