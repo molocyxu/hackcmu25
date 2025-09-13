@@ -7,7 +7,7 @@ async function transcribeWithWhisper(
   startTime?: number,
   endTime?: number,
   includeWordTimestamps: boolean = false
-): Promise<any> {
+): Promise<unknown> {
   const requestBody = {
     audio_path: audioPath,
     model,

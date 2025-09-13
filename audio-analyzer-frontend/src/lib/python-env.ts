@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { spawn, SpawnOptions } from 'child_process';
+import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 export interface PythonEnvConfig {
   pythonBin: string;
@@ -50,7 +50,7 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
         try {
           if (
             (g.includes('/') && fs.existsSync(g)) ||
-            (!g.includes('/') && require('child_process').spawnSync(g, ['--version']).status === 0)
+            (!g.includes('/') && spawnSync(g, ['--version']).status === 0)
           ) {
             pythonBin = g;
             console.log('[PYTHON-ENV] Found working python guess:', pythonBin);
@@ -94,7 +94,7 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
 
   const env: Record<string, string> = Object.fromEntries(
     Object.entries(rawEnv)
-      .filter(([_, v]) => typeof v === 'string' && v !== undefined)
+      .filter(([, v]) => typeof v === 'string' && v !== undefined)
       .map(([k, v]) => [k, v as string])
   );
 

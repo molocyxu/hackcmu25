@@ -85,7 +85,7 @@ export function TranscriptionTab({ state, updateState, onSearchWord, formatTimes
             <div className="space-y-1">
               {state.searchResults.map((result, index) => (
                 <div key={index} className="text-xs flex justify-between items-center">
-                  <span>"{result.word}"</span>
+                  <span>&quot;{result.word}&quot;</span>
                   <Badge variant="outline" className="text-xs">
                     {formatTimestamp(result.start)}
                   </Badge>

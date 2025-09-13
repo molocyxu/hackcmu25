@@ -28,8 +28,8 @@ export function NewAudioDialog({
   onCreateAudio 
 }: NewAudioDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [generateNetworkPlot, setGenerateNetworkPlot] = useState(false);
-  const [cleanText, setCleanText] = useState(false);
+  // const [generateNetworkPlot, setGenerateNetworkPlot] = useState(false);
+  // const [cleanText, setCleanText] = useState(false);
   
   // Local state for dialog
   const [localAudioFile, setLocalAudioFile] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function NewAudioDialog({
       setLocalApiKey("");
       setLocalWordLimit(500);
       setLocalOutputFormat("Markdown");
-      setGenerateNetworkPlot(false);
+      // setGenerateNetworkPlot(false);
       setIsRecording(false);
       setRecordingDuration(0);
     }
