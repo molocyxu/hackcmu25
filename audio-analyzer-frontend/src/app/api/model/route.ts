@@ -98,8 +98,14 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/workspace/venv/bin/python3', ['-c', pythonScript, model], {
-      stdio: ['pipe', 'pipe', 'pipe']
+    const python = spawn('/workspace/venv/bin/python', ['-c', pythonScript, model], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: '/workspace',
+      env: {
+        ...process.env,
+        PATH: '/workspace/venv/bin:' + process.env.PATH,
+        VIRTUAL_ENV: '/workspace/venv'
+      }
     });
 
     let stdout = '';
@@ -157,6 +163,7 @@ warnings.filterwarnings("ignore")
 def load_model(model_name):
     try:
         # Load the model (this will download it if not present)
+        # This is the same approach as used in audioapp.ipynb
         model = whisper.load_model(model_name)
         return {
             "success": True,
@@ -178,8 +185,14 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/workspace/venv/bin/python3', ['-c', pythonScript, model], {
-      stdio: ['pipe', 'pipe', 'pipe']
+    const python = spawn('/workspace/venv/bin/python', ['-c', pythonScript, model], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: '/workspace',
+      env: {
+        ...process.env,
+        PATH: '/workspace/venv/bin:' + process.env.PATH,
+        VIRTUAL_ENV: '/workspace/venv'
+      }
     });
 
     let stdout = '';
