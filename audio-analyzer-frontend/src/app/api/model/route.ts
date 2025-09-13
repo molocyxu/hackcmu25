@@ -74,7 +74,7 @@ function resolvePython() {
       if (g.includes('/') && fs.existsSync(g)) return g;
     } catch {}
   }
-  return 'python3';
+  return '/usr/bin/python3'; // Use absolute path that we know exists
 }
 
 function checkModelStatus(model: string): Promise<ModelResult> {
@@ -131,7 +131,8 @@ if __name__ == "__main__":
       env: {
         ...process.env,
         PATH: `${pathPrefix}:${process.env.PATH || ''}`,
-        PYTHONPATH: `${pathPrefix}:${process.env.PYTHONPATH || ''}`
+        PYTHONPATH: `/home/ubuntu/.local/lib/python3.13/site-packages:${process.env.PYTHONPATH || ''}`,
+        HOME: '/home/ubuntu'
       }
     });
 
@@ -222,7 +223,8 @@ if __name__ == "__main__":
       env: {
         ...process.env,
         PATH: `${pathPrefix}:${process.env.PATH || ''}`,
-        PYTHONPATH: `${pathPrefix}:${process.env.PYTHONPATH || ''}`
+        PYTHONPATH: `/home/ubuntu/.local/lib/python3.13/site-packages:${process.env.PYTHONPATH || ''}`,
+        HOME: '/home/ubuntu'
       }
     });
 
