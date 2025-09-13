@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+
+export const runtime = 'nodejs'; // ensure NOT edge
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -54,6 +58,25 @@ interface ModelResult {
   error?: string;
 }
 
+function resolvePython() {
+  const fromEnv = process.env.PYTHON_BIN;
+  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
+
+  const guesses = [
+    '/usr/bin/python3',
+    '/usr/local/bin/python3',
+    '/opt/homebrew/bin/python3',
+    'python3',
+    'python',
+  ];
+  for (const g of guesses) {
+    try {
+      if (g.includes('/') && fs.existsSync(g)) return g;
+    } catch {}
+  }
+  return 'python3';
+}
+
 function checkModelStatus(model: string): Promise<ModelResult> {
   return new Promise((resolve) => {
     const pythonScript = `
@@ -98,26 +121,32 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/usr/bin/python3', ['-c', pythonScript, model], {
+    const pythonBin = resolvePython();
+    const pathPrefix = process.env.PATH_PREFIX || '/home/ubuntu/.local/bin';
+    const workspaceRoot = process.env.WORKSPACE_ROOT || '/workspace';
+
+    const proc = spawn(pythonBin, ['-c', pythonScript, model], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: '/workspace',
+      cwd: workspaceRoot,
       env: {
-        ...process.env
+        ...process.env,
+        PATH: `${pathPrefix}:${process.env.PATH || ''}`,
+        PYTHONPATH: `${pathPrefix}:${process.env.PYTHONPATH || ''}`
       }
     });
 
     let stdout = '';
     let stderr = '';
 
-    python.stdout.on('data', (data) => {
+    proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    python.stderr.on('data', (data) => {
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    python.on('close', (code) => {
+    proc.on('close', (code) => {
       if (code !== 0) {
         console.error('Python script error:', stderr);
         resolve({
@@ -139,7 +168,7 @@ if __name__ == "__main__":
       }
     });
 
-    python.on('error', (error) => {
+    proc.on('error', (error) => {
       console.error('Failed to spawn Python process:', error);
       resolve({
         success: false,
@@ -183,26 +212,32 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/usr/bin/python3', ['-c', pythonScript, model], {
+    const pythonBin = resolvePython();
+    const pathPrefix = process.env.PATH_PREFIX || '/home/ubuntu/.local/bin';
+    const workspaceRoot = process.env.WORKSPACE_ROOT || '/workspace';
+
+    const proc = spawn(pythonBin, ['-c', pythonScript, model], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: '/workspace',
+      cwd: workspaceRoot,
       env: {
-        ...process.env
+        ...process.env,
+        PATH: `${pathPrefix}:${process.env.PATH || ''}`,
+        PYTHONPATH: `${pathPrefix}:${process.env.PYTHONPATH || ''}`
       }
     });
 
     let stdout = '';
     let stderr = '';
 
-    python.stdout.on('data', (data) => {
+    proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    python.stderr.on('data', (data) => {
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    python.on('close', (code) => {
+    proc.on('close', (code) => {
       if (code !== 0) {
         console.error('Python script error:', stderr);
         resolve({
@@ -224,7 +259,7 @@ if __name__ == "__main__":
       }
     });
 
-    python.on('error', (error) => {
+    proc.on('error', (error) => {
       console.error('Failed to spawn Python process:', error);
       resolve({
         success: false,
