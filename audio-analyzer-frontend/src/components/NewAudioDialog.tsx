@@ -44,7 +44,7 @@ export function NewAudioDialog({
   const [summaryTone, setSummaryTone] = useState("Professional");
   
   // Translation state
-  const [targetLanguage, setTargetLanguage] = useState("Spanish");
+  const [targetLanguage, setTargetLanguage] = useState("None");
   const [translationStyle, setTranslationStyle] = useState("Natural");
   const [preserveFormatting, setPreserveFormatting] = useState(true);
   
@@ -228,13 +228,6 @@ export function NewAudioDialog({
       mediaRecorder.start(1000);
       setIsRecording(true);
       setRecordingDuration(0);
-
-      let duration = 0;
-      recordingTimerRef.current = setInterval(() => {
-        duration += 1;
-        setRecordingDuration(duration);
-      }, 1000);
-
     } catch (error) {
       console.error('Failed to start recording:', error);
     }
@@ -243,12 +236,6 @@ export function NewAudioDialog({
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      
       setIsRecording(false);
     }
   };
@@ -260,6 +247,26 @@ export function NewAudioDialog({
       await startRecording();
     }
   };
+
+  // Timer effect for recording duration
+  React.useEffect(() => {
+    if (isRecording) {
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    };
+  }, [isRecording]);
 
   // Cleanup on unmount
   React.useEffect(() => {
@@ -288,8 +295,10 @@ export function NewAudioDialog({
       processHistory: [],
       currentHistoryIndex: -1,
       status: "Ready to transcribe",
+      targetLanguage,
+      translationStyle,
+      preserveFormatting,
     });
-    
     onCreateAudio();
     onOpenChange(false);
   };
@@ -337,7 +346,7 @@ export function NewAudioDialog({
                   </p>
                 )}
               </div>
-              
+
               <Separator className="my-4" />
               
               <div>
@@ -475,44 +484,20 @@ export function NewAudioDialog({
                   )}
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="clean-text"
-                  checked={cleanText}
-                  onChange={(e) => setCleanText(e.target.checked)}
-                  className="rounded"
-                />
-                <Label htmlFor="clean-text" className="text-sm">
-                  Clean text
-                </Label>
-                <span 
-                  className="text-xs text-muted-foreground cursor-help" 
-                  title="Automatically clean transcribed text by correcting grammar, removing filler words, and fixing transcription errors"
-                >
-                  ℹ️
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="network-plot"
-                  checked={generateNetworkPlot}
-                  onChange={(e) => setGenerateNetworkPlot(e.target.checked)}
-                  className="rounded"
-                />
-                <Label htmlFor="network-plot" className="text-sm">
-                  Generate network plot
-                </Label>
-                <span 
-                  className="text-xs text-muted-foreground cursor-help" 
-                  title="Create a semantic network visualization showing word relationships and clusters based on co-occurrence patterns"
-                >
-                  ℹ️
-                </span>
-              </div>
+
+              {/* Moved audio player here */}
+              {(localAudioFile || localRecordedFile) && (
+                <div className="mt-4">
+                  <Label>Preview & Listen</Label>
+                  <audio
+                    controls
+                    src={localAudioFile || localRecordedFile || undefined}
+                    className="w-full mt-2"
+                  >
+                    Your browser does not support the audio element.
+                  </audio>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -641,6 +626,7 @@ export function NewAudioDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="None">None</SelectItem>
                     <SelectItem value="Spanish">Spanish</SelectItem>
                     <SelectItem value="French">French</SelectItem>
                     <SelectItem value="German">German</SelectItem>

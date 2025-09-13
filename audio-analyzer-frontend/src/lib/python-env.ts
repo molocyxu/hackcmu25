@@ -12,13 +12,20 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
   const fromEnv = process.env.PYTHON_BIN;
   let pythonBin = '';
 
+  console.log('[PYTHON-ENV] Starting resolvePythonEnvironment');
+  console.log('[PYTHON-ENV] process.env.PYTHON_BIN:', fromEnv);
+  console.log('[PYTHON-ENV] process.env.VIRTUAL_ENV:', process.env.VIRTUAL_ENV);
+  console.log('[PYTHON-ENV] process.env.CONDA_PREFIX:', process.env.CONDA_PREFIX);
+
   if (fromEnv && fs.existsSync(fromEnv)) {
     pythonBin = fromEnv;
+    console.log('[PYTHON-ENV] Using PYTHON_BIN from env:', pythonBin);
   } else {
     // Check for virtual environment
     const venvPython = process.env.VIRTUAL_ENV ? `${process.env.VIRTUAL_ENV}/bin/python3` : null;
     if (venvPython && fs.existsSync(venvPython)) {
       pythonBin = venvPython;
+      console.log('[PYTHON-ENV] Using VIRTUAL_ENV python:', pythonBin);
     } else {
       // Check for conda environment
       const condaPrefix = process.env.CONDA_PREFIX;
@@ -26,10 +33,10 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
         const condaPython = `${condaPrefix}/bin/python3`;
         if (fs.existsSync(condaPython)) {
           pythonBin = condaPython;
+          console.log('[PYTHON-ENV] Using CONDA_PREFIX python:', pythonBin);
         }
       }
     }
-    
     // Improved fallback: check for common system Python executables
     if (!pythonBin) {
       const guesses = [
@@ -41,17 +48,22 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
       ];
       for (const g of guesses) {
         try {
-          // Try to spawn the python binary to check if it works
           if (
             (g.includes('/') && fs.existsSync(g)) ||
             (!g.includes('/') && require('child_process').spawnSync(g, ['--version']).status === 0)
           ) {
             pythonBin = g;
+            console.log('[PYTHON-ENV] Found working python guess:', pythonBin);
             break;
           }
-        } catch {}
+        } catch (err) {
+          console.log('[PYTHON-ENV] Error checking python guess:', g, err);
+        }
       }
-      if (!pythonBin) pythonBin = 'python3'; // Final fallback
+      if (!pythonBin) {
+        pythonBin = '/Users/alexzheng414/gitstuff/hackcmu25/audio_analyzer_env/bin/python3'; // Final fallback (hardcoded)
+        console.log('[PYTHON-ENV] Using hardcoded fallback python:', pythonBin);
+      }
     }
   }
   
@@ -86,6 +98,9 @@ export function resolvePythonEnvironment(): PythonEnvConfig {
       .map(([k, v]) => [k, v as string])
   );
 
+  console.log('[PYTHON-ENV] Final pythonBin:', pythonBin);
+  console.log('[PYTHON-ENV] Final pythonPath:', pythonPath);
+
   return {
     pythonBin,
     pythonPath,
@@ -100,7 +115,12 @@ export function spawnPython(
 ) {
   const config = resolvePythonEnvironment();
   const workspaceRoot = process.cwd();
-  
+  console.log('[PYTHON-ENV] Spawning python process');
+  console.log('[PYTHON-ENV] script:', script);
+  console.log('[PYTHON-ENV] args:', args);
+  console.log('[PYTHON-ENV] pythonBin:', config.pythonBin);
+  console.log('[PYTHON-ENV] cwd:', workspaceRoot);
+  console.log('[PYTHON-ENV] env:', config.env);
   return spawn(config.pythonBin, ['-c', script, ...args], {
     stdio: ['pipe', 'pipe', 'pipe'],
     cwd: workspaceRoot,

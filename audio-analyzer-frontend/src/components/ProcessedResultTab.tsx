@@ -34,7 +34,7 @@ export function ProcessedResultTab({ state, updateState }: ProcessedResultTabPro
   };
 
   const processCustomPrompt = async () => {
-    if (!state.transcribedText || !state.apiKey) return;
+    if (!state.transcribedText || !state.apiKey || !state.customPrompt) return;
 
     updateState({
       isProcessing: true,
@@ -42,25 +42,17 @@ export function ProcessedResultTab({ state, updateState }: ProcessedResultTabPro
     });
 
     try {
-      const processedPrompt = state.customPrompt.replace("{text}", state.transcribedText);
-
-      const response = await fetch('/api/process', {
+      const response = await fetch('/api/custom-prompt', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: state.transcribedText,
-          prompt: processedPrompt,
           apiKey: state.apiKey,
-          wordLimit: state.wordLimit,
-          outputFormat: state.outputFormat,
+          customPrompt: state.customPrompt,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Processing failed');
-      }
+      if (!response.ok) throw new Error('Custom prompt failed');
 
       const data = await response.json();
       
@@ -78,11 +70,11 @@ export function ProcessedResultTab({ state, updateState }: ProcessedResultTabPro
       });
       
     } catch (error) {
-      console.error('Processing error:', error);
+      console.error('Custom prompt error:', error);
       updateState({
         isProcessing: false,
-        status: "Custom prompt processing failed",
-        error: error instanceof Error ? error.message : "Processing failed",
+        status: "Custom prompt failed",
+        error: error instanceof Error ? error.message : "Custom prompt failed",
       });
     }
   };

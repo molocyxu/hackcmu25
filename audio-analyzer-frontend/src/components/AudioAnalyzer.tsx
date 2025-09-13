@@ -31,6 +31,9 @@ export interface AudioAnalyzerState {
   customPrompt: string;
   semanticSummary: string;
   networkPlotUrl: string | null;
+  targetLanguage: string;
+  translationStyle: string;
+  preserveFormatting: boolean;
 }
 
 export function AudioAnalyzer() {
@@ -56,6 +59,9 @@ export function AudioAnalyzer() {
     customPrompt: "Analyze the following text and provide insights:\n\n{text}",
     semanticSummary: "",
     networkPlotUrl: null,
+    targetLanguage: "None",
+    translationStyle: "Natural",
+    preserveFormatting: true,
   });
 
   const [isNewAudioDialogOpen, setIsNewAudioDialogOpen] = useState(false);
@@ -221,9 +227,8 @@ export function AudioAnalyzer() {
       }
 
       const data = await response.json();
-      
       updateState({
-        transcribedText: data.result,
+        transcribedText: data.cleaned,
         isProcessing: false,
         progress: 100,
         status: "Text cleaned successfully",
@@ -350,66 +355,87 @@ export function AudioAnalyzer() {
   };
 
   const handleTranslate = async () => {
-    if (!state.transcribedText || !state.apiKey) return;
-    
-    // For now, use default values - in a full implementation, these would come from UI
-    const targetLanguage = "Spanish";
-    const translationStyle = "Natural";
-    const preserveFormatting = true;
+    if (!state.transcribedText || !state.apiKey || state.targetLanguage === 'None') return;
     
     updateState({
       isProcessing: true,
       progress: 30,
-      status: `Translating to ${targetLanguage}...`,
+      status: `Translating to ${state.targetLanguage}...`,
     });
 
     try {
       const response = await fetch('/api/translate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: state.transcribedText,
           apiKey: state.apiKey,
-          targetLanguage,
-          translationStyle,
-          preserveFormatting,
+          targetLanguage: state.targetLanguage,
+          translationStyle: state.translationStyle,
+          preserveFormatting: state.preserveFormatting,
           outputFormat: state.outputFormat,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Translation failed');
-      }
-
+      if (!response.ok) throw new Error('Translation failed');
       const data = await response.json();
-      
-      const newHistory = [...state.processHistory, { 
-        prompt: `Translate to ${targetLanguage}`, 
-        result: data.result 
-      }];
-      
       updateState({
-        processHistory: newHistory,
-        currentHistoryIndex: newHistory.length - 1,
+        transcribedText: data.result || data.translation,
         isProcessing: false,
         progress: 100,
-        status: `Translation to ${targetLanguage} completed`,
+        status: `Translation to ${state.targetLanguage} completed`,
         error: null,
       });
-
-      setTimeout(() => {
-        updateState({ progress: 0 });
-      }, 2000);
-      
+      setTimeout(() => { updateState({ progress: 0 }); }, 2000);
     } catch (error) {
       console.error('Translation error:', error);
       updateState({
         isProcessing: false,
         progress: 0,
-        status: "Translation failed",
-        error: error instanceof Error ? error.message : "Translation failed",
+        status: 'Translation failed',
+        error: error instanceof Error ? error.message : 'Translation failed',
+      });
+    }
+  };
+
+  const handleCustomPrompt = async () => {
+    if (!state.transcribedText || !state.apiKey || !state.customPrompt) return;
+    updateState({
+      isProcessing: true,
+      progress: 30,
+      status: "Processing custom prompt...",
+    });
+    try {
+      const response = await fetch('/api/custom-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: state.transcribedText,
+          apiKey: state.apiKey,
+          customPrompt: state.customPrompt,
+        }),
+      });
+      if (!response.ok) throw new Error('Custom prompt failed');
+      const data = await response.json();
+      const newHistory = [...state.processHistory, {
+        prompt: state.customPrompt,
+        result: data.result
+      }];
+      updateState({
+        processHistory: newHistory,
+        currentHistoryIndex: newHistory.length - 1,
+        isProcessing: false,
+        progress: 100,
+        status: "Custom prompt processed",
+        error: null,
+      });
+      setTimeout(() => { updateState({ progress: 0 }); }, 2000);
+    } catch (error) {
+      console.error('Custom prompt error:', error);
+      updateState({
+        isProcessing: false,
+        progress: 0,
+        status: "Custom prompt failed",
+        error: error instanceof Error ? error.message : "Custom prompt failed",
       });
     }
   };
@@ -478,26 +504,9 @@ export function AudioAnalyzer() {
                     🎙️ Transcribe
                   </Button>
                   <Button
-                    onClick={handleCleanText}
-                    disabled={!canProcess}
-                    variant="outline"
-                    size="sm"
-                  >
-                    🧹 Clean
-                  </Button>
-                  <Button
-                    onClick={handleNetworkPlot}
-                    disabled={!canProcess}
-                    variant="outline"
-                    size="sm"
-                  >
-                    🕸️ Network
-                  </Button>
-                  <Button
                     onClick={handleTranslate}
                     disabled={!canProcess}
-                    variant="outline"
-                    size="sm"
+                    className="btn-primary"
                   >
                     🌐 Translate
                   </Button>
@@ -551,16 +560,25 @@ export function AudioAnalyzer() {
                   <div className="flex-1 p-4 border-b border-border/50">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-medium">Semantic Network</h4>
-                      <Button
-                        onClick={handleNetworkPlot}
-                        disabled={!canProcess}
-                        size="sm"
-                        variant="outline"
-                      >
-                        ↻ Generate
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleCleanText}
+                          disabled={!canProcess}
+                          size="sm"
+                          variant="outline"
+                        >
+                          🧹 Clean
+                        </Button>
+                        <Button
+                          onClick={handleNetworkPlot}
+                          disabled={!canProcess}
+                          size="sm"
+                          variant="outline"
+                        >
+                          ↻ Generate
+                        </Button>
+                      </div>
                     </div>
-                    
                     <div className="border border-border/50 rounded-lg p-4 min-h-[200px] flex items-center justify-center bg-muted/20">
                       {state.networkPlotUrl ? (
                         <img 
@@ -612,6 +630,25 @@ export function AudioAnalyzer() {
                 </div>
               </Card>
             </div>
+
+            {/* Custom Prompt Section */}
+            <Card className="gradient-card border-border/50 mt-6 p-4">
+              <h3 className="text-lg font-semibold mb-2">Custom Prompt</h3>
+              <textarea
+                className="w-full border rounded p-2 mb-2"
+                rows={3}
+                value={state.customPrompt}
+                onChange={e => updateState({ customPrompt: e.target.value })}
+                placeholder="Enter your custom prompt. Use {text} to insert the transcript."
+              />
+              <Button
+                onClick={handleCustomPrompt}
+                disabled={!canProcess || !state.customPrompt}
+                className="btn-primary"
+              >
+                🧠 Process Custom Prompt
+              </Button>
+            </Card>
 
             {/* Bottom Toolbar */}
             <Card className="gradient-card border-border/50 p-4">
