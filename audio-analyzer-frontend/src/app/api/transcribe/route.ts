@@ -110,13 +110,11 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/workspace/venv/bin/python', ['-c', pythonScript, audioPath, model], {
+    const python = spawn('/usr/bin/python3', ['-c', pythonScript, audioPath, model], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: '/workspace',
       env: {
-        ...process.env,
-        PATH: '/workspace/venv/bin:' + process.env.PATH,
-        VIRTUAL_ENV: '/workspace/venv'
+        ...process.env
       }
     });
 

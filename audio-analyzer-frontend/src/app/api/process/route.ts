@@ -187,13 +187,11 @@ function processWithClaude(text: string, prompt: string, apiKey: string, wordLim
       "    print(json.dumps(result))"
     ].join("\\n");
 
-    const python = spawn('/workspace/venv/bin/python', ['-c', pythonScript, text, prompt, apiKey, wordLimit.toString(), outputFormat], {
+    const python = spawn('/usr/bin/python3', ['-c', pythonScript, text, prompt, apiKey, wordLimit.toString(), outputFormat], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: '/workspace',
       env: {
-        ...process.env,
-        PATH: '/workspace/venv/bin:' + process.env.PATH,
-        VIRTUAL_ENV: '/workspace/venv'
+        ...process.env
       }
     });
 
