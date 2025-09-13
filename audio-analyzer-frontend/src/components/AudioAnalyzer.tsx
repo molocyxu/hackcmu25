@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Sidebar } from "./Sidebar";
 import { TranscriptionTab } from "./TranscriptionTab";
 import { ProcessedResultTab } from "./ProcessedResultTab";
@@ -24,6 +25,7 @@ export interface AudioAnalyzerState {
   isProcessing: boolean;
   progress: number;
   status: string;
+  error: string | null;
   processHistory: Array<{ prompt: string; result: string }>;
   currentHistoryIndex: number;
   customPrompt: string;
@@ -38,7 +40,7 @@ export function AudioAnalyzer() {
     recordingDuration: 0,
     recordedFilePath: null,
     whisperModel: "base",
-    modelLoaded: true, // Set to true for demo purposes
+    modelLoaded: false, // Set to false initially, will be checked by API
     apiKey: "",
     wordLimit: 500,
     outputFormat: "Markdown",
@@ -46,6 +48,7 @@ export function AudioAnalyzer() {
     isProcessing: false,
     progress: 0,
     status: "Ready",
+    error: null,
     processHistory: [],
     currentHistoryIndex: -1,
     customPrompt: "Analyze the following text and provide insights:\n\n{text}",
@@ -65,6 +68,21 @@ export function AudioAnalyzer() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <div className="flex-1 p-6">
+          {/* Error Alert */}
+          {state.error && (
+            <Alert className="mb-4 border-destructive">
+              <AlertDescription className="flex items-center justify-between">
+                <span>{state.error}</span>
+                <button 
+                  onClick={() => updateState({ error: null })}
+                  className="ml-2 text-destructive hover:text-destructive/80"
+                >
+                  ✕
+                </button>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <Card className="h-full">
             <Tabs defaultValue="transcription" className="h-full flex flex-col">
               <TabsList className="grid w-full grid-cols-2 mb-4">
