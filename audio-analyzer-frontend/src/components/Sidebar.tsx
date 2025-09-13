@@ -339,21 +339,26 @@ export function Sidebar({ state, updateState }: SidebarProps) {
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Audio Analyzer</h1>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-chart-2 bg-clip-text text-transparent">
+            Audio Analyzer
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Transcribe and analyze audio with AI
           </p>
         </div>
 
         {/* Step 1: File Selection */}
-        <Card>
+        <Card className="gradient-card border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Step 1: Select Audio File</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className="text-primary">📁</span>
+              Step 1: Select Audio File
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
               onClick={() => fileInputRef.current?.click()}
-              className="w-full"
+              className="w-full btn-modern glow-primary hover:scale-105 transition-all"
               variant="outline"
             >
               📁 Choose Audio File
@@ -372,14 +377,17 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         </Card>
 
         {/* Recording Section */}
-        <Card>
+        <Card className="gradient-card border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Or Record Audio</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className="text-primary">🎤</span>
+              Or Record Audio
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button
               onClick={handleRecordToggle}
-              className="w-full"
+              className="w-full glow-primary hover:scale-105 transition-all"
               variant={state.isRecording ? "destructive" : "outline"}
             >
               {state.isRecording ? "⏹️ Stop Recording" : "🎤 Start Recording"}
@@ -412,9 +420,12 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         </Card>
 
         {/* Step 2: Transcription */}
-        <Card>
+        <Card className="gradient-card border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Step 2: Transcribe Audio</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className="text-primary">📝</span>
+              Step 2: Transcribe Audio
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -453,7 +464,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
             <Button
               onClick={handleTranscribe}
               disabled={!canTranscribe}
-              className="w-full"
+              className="w-full btn-modern glow-primary hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
             >
               🎙️ Transcribe
             </Button>
@@ -461,9 +472,12 @@ export function Sidebar({ state, updateState }: SidebarProps) {
         </Card>
 
         {/* Step 3: AI Processing */}
-        <Card>
+        <Card className="gradient-card border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Step 3: Process with AI</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className="text-primary">✨</span>
+              Step 3: Process with AI
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -520,7 +534,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
             <Button
               onClick={handleSummarize}
               disabled={!canProcess}
-              className="w-full"
+              className="w-full btn-modern glow-primary hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
             >
               📝 Summarize
             </Button>
@@ -529,7 +543,7 @@ export function Sidebar({ state, updateState }: SidebarProps) {
 
         {/* Progress Section */}
         {state.progress > 0 && (
-          <Card>
+          <Card className="gradient-card border-border/50">
             <CardContent className="pt-6">
               <Progress value={state.progress} className="mb-2" />
               <p className="text-sm text-center text-muted-foreground">
