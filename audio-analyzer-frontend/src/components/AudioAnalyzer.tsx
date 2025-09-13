@@ -61,7 +61,7 @@ export function AudioAnalyzer() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <div className="w-80 border-r bg-card">
+      <div className="w-80 border-r gradient-card backdrop-blur-lg">
         <Sidebar state={state} updateState={updateState} />
       </div>
 
@@ -70,12 +70,12 @@ export function AudioAnalyzer() {
         <div className="flex-1 p-6">
           {/* Error Alert */}
           {state.error && (
-            <Alert className="mb-4 border-destructive">
+            <Alert className="mb-4 border-destructive gradient-card backdrop-blur-lg">
               <AlertDescription className="flex items-center justify-between">
                 <span>{state.error}</span>
                 <button 
                   onClick={() => updateState({ error: null })}
-                  className="ml-2 text-destructive hover:text-destructive/80"
+                  className="ml-2 text-destructive hover:text-destructive/80 transition-colors"
                 >
                   ✕
                 </button>
@@ -83,13 +83,13 @@ export function AudioAnalyzer() {
             </Alert>
           )}
           
-          <Card className="h-full">
+          <Card className="h-full gradient-card backdrop-blur-lg border-border/50">
             <Tabs defaultValue="transcription" className="h-full flex flex-col">
-              <TabsList className="grid w-full grid-cols-2 mb-4">
-                <TabsTrigger value="transcription" className="flex items-center gap-2">
+              <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/50 backdrop-blur-sm">
+                <TabsTrigger value="transcription" className="flex items-center gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">
                   📝 Transcription
                 </TabsTrigger>
-                <TabsTrigger value="result" className="flex items-center gap-2">
+                <TabsTrigger value="result" className="flex items-center gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary transition-all">
                   ✨ Processed Result
                 </TabsTrigger>
               </TabsList>
@@ -106,7 +106,7 @@ export function AudioAnalyzer() {
         </div>
 
         {/* Bottom Toolbar */}
-        <div className="border-t bg-card p-4">
+        <div className="border-t gradient-card backdrop-blur-lg border-border/50 p-4">
           <ToolbarButtons state={state} updateState={updateState} />
         </div>
       </div>
