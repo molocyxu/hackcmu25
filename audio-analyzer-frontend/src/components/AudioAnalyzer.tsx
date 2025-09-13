@@ -29,6 +29,8 @@ export interface AudioAnalyzerState {
   processHistory: Array<{ prompt: string; result: string }>;
   currentHistoryIndex: number;
   customPrompt: string;
+  semanticSummary: string;
+  networkPlotUrl: string | null;
 }
 
 export function AudioAnalyzer() {
@@ -52,6 +54,8 @@ export function AudioAnalyzer() {
     processHistory: [],
     currentHistoryIndex: -1,
     customPrompt: "Analyze the following text and provide insights:\n\n{text}",
+    semanticSummary: "",
+    networkPlotUrl: null,
   });
 
   const [isNewAudioDialogOpen, setIsNewAudioDialogOpen] = useState(false);
@@ -284,6 +288,121 @@ export function AudioAnalyzer() {
     }
   };
 
+  const handleSemanticSummary = async () => {
+    if (!state.transcribedText || !state.apiKey) return;
+    
+    updateState({
+      isProcessing: true,
+      progress: 30,
+      status: "Generating semantic summary...",
+    });
+
+    try {
+      const response = await fetch('/api/semantic-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: state.transcribedText,
+          apiKey: state.apiKey,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Semantic summary generation failed');
+      }
+
+      const data = await response.json();
+      
+      updateState({
+        semanticSummary: data.summary,
+        isProcessing: false,
+        progress: 100,
+        status: "Semantic summary generated successfully",
+        error: null,
+      });
+
+      setTimeout(() => {
+        updateState({ progress: 0 });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Semantic summary error:', error);
+      updateState({
+        isProcessing: false,
+        progress: 0,
+        status: "Semantic summary generation failed",
+        error: error instanceof Error ? error.message : "Semantic summary generation failed",
+      });
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!state.transcribedText || !state.apiKey) return;
+    
+    // For now, use default values - in a full implementation, these would come from UI
+    const targetLanguage = "Spanish";
+    const translationStyle = "Natural";
+    const preserveFormatting = true;
+    
+    updateState({
+      isProcessing: true,
+      progress: 30,
+      status: `Translating to ${targetLanguage}...`,
+    });
+
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: state.transcribedText,
+          apiKey: state.apiKey,
+          targetLanguage,
+          translationStyle,
+          preserveFormatting,
+          outputFormat: state.outputFormat,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Translation failed');
+      }
+
+      const data = await response.json();
+      
+      const newHistory = [...state.processHistory, { 
+        prompt: `Translate to ${targetLanguage}`, 
+        result: data.result 
+      }];
+      
+      updateState({
+        processHistory: newHistory,
+        currentHistoryIndex: newHistory.length - 1,
+        isProcessing: false,
+        progress: 100,
+        status: `Translation to ${targetLanguage} completed`,
+        error: null,
+      });
+
+      setTimeout(() => {
+        updateState({ progress: 0 });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Translation error:', error);
+      updateState({
+        isProcessing: false,
+        progress: 0,
+        status: "Translation failed",
+        error: error instanceof Error ? error.message : "Translation failed",
+      });
+    }
+  };
+
   const canTranscribe = state.audioFilePath && state.modelLoaded && !state.isTranscribing;
   const canProcess = state.transcribedText && state.apiKey && !state.isProcessing;
 
@@ -364,6 +483,14 @@ export function AudioAnalyzer() {
                     🕸️ Network
                   </Button>
                   <Button
+                    onClick={handleTranslate}
+                    disabled={!canProcess}
+                    variant="outline"
+                    size="sm"
+                  >
+                    🌐 Translate
+                  </Button>
+                  <Button
                     onClick={handleSummarize}
                     disabled={!canProcess}
                     className="btn-primary"
@@ -387,16 +514,91 @@ export function AudioAnalyzer() {
               )}
             </Card>
 
-            {/* Side by Side Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[600px]">
-              {/* Transcription */}
+            {/* Three Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[600px]">
+              {/* Left: Transcription */}
               <Card className="gradient-card border-border/50">
                 <TranscriptionTab state={state} updateState={updateState} />
               </Card>
 
-              {/* Processed Result */}
+              {/* Center: Processed Result */}
               <Card className="gradient-card border-border/50">
                 <ProcessedResultTab state={state} updateState={updateState} />
+              </Card>
+
+              {/* Right: Visualization Panel */}
+              <Card className="gradient-card border-border/50 flex flex-col">
+                <div className="p-4 border-b border-border/50">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <span>🕸️</span>
+                    Visualizations
+                  </h3>
+                </div>
+                
+                <div className="flex-1 flex flex-col">
+                  {/* Network Plot Section */}
+                  <div className="flex-1 p-4 border-b border-border/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">Semantic Network</h4>
+                      <Button
+                        onClick={handleNetworkPlot}
+                        disabled={!canProcess}
+                        size="sm"
+                        variant="outline"
+                      >
+                        ↻ Generate
+                      </Button>
+                    </div>
+                    
+                    <div className="border border-border/50 rounded-lg p-4 min-h-[200px] flex items-center justify-center bg-muted/20">
+                      {state.networkPlotUrl ? (
+                        <img 
+                          src={state.networkPlotUrl} 
+                          alt="Semantic Network Plot" 
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <div className="text-2xl mb-2">🕸️</div>
+                          <p className="text-sm">No network generated yet</p>
+                          <p className="text-xs mt-1">Click Generate to create visualization</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Semantic Summary Section */}
+                  <div className="flex-1 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">Semantic & Tone Summary</h4>
+                      <Button
+                        onClick={handleSemanticSummary}
+                        disabled={!canProcess}
+                        size="sm"
+                        variant="outline"
+                      >
+                        ✨ Generate
+                      </Button>
+                    </div>
+                    
+                    <div className="border border-border/50 rounded-lg p-4 min-h-[150px] bg-muted/20">
+                      {state.semanticSummary ? (
+                        <div className="text-sm">
+                          <p className="leading-relaxed">{state.semanticSummary}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Generated at {new Date().toLocaleTimeString()}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center text-muted-foreground">
+                          <div className="text-2xl mb-2">📊</div>
+                          <p className="text-sm">No summary generated yet</p>
+                          <p className="text-xs mt-1">Click Generate to create summary</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </Card>
             </div>
 

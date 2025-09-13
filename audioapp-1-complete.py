@@ -1,0 +1,274 @@
+import os
+import sys
+import json
+import threading
+from pathlib import Path
+from datetime import datetime
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, scrolledtext
+from collections import Counter
+import re
+import customtkinter as ctk
+import whisper
+import sounddevice as sd
+import soundfile as sf
+import numpy as np
+from datetime import datetime
+from anthropic import Anthropic
+from typing import Optional, Dict, Any, List, Tuple
+import queue
+import time
+import subprocess
+import tempfile
+
+# Set appearance mode and color theme
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+class AudioAnalyzerApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        
+        self.title("Audio Transcription & Analysis Tool")
+        self.geometry("1400x800")
+        
+        # Make window resizable with minimum size
+        self.minsize(1200, 600)
+        self.resizable(True, True)
+        
+        # Initialize variables
+        self.audio_file_path = None
+        self.transcribed_text = ""
+        self.api_key = None
+        self.whisper_model = None
+        self.error_queue = queue.Queue()
+        self.model_loading = False
+        
+        # History for processed results (prompt, output) pairs
+        self.process_history: List[Tuple[str, str]] = []
+        self.current_history_index = -1
+        
+        # Recording variables
+        self.is_recording = False
+        self.recording_data = []
+        self.recording_samplerate = 44100
+        self.recording_thread = None
+        self.recording_start_time = None
+        self.recorded_file_path = None
+        self.recording_process = None
+        
+        # Time segment variables
+        self.audio_duration = None
+        self.last_transcription_segment = (None, None)
+        
+        # Network plot variables
+        self.current_network_plot_path = None
+        self.word2vec_model = None
+        self.network_photo = None  # Store the photo reference
+        
+        # Configure grid weight for resizing
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        
+        # Create main container with proper scaling
+        self.main_container = ctk.CTkFrame(self)
+        self.main_container.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.main_container.grid_columnconfigure(0, weight=0)  # Sidebar doesn't resize
+        self.main_container.grid_columnconfigure(1, weight=3)  # Main content scales
+        self.main_container.grid_rowconfigure(0, weight=1)
+        
+        # Create UI components
+        self.create_sidebar()
+        self.create_main_panel()
+        
+        # Bind resize event for network plot
+        self.bind("<Configure>", self.on_window_resize)
+        
+        # Start checking for errors from background threads
+        self.check_error_queue()
+        
+        # Initialize Whisper model in background
+        self.load_whisper_model()
+
+    def toggle_time_segment(self):
+        """Toggle between full audio and time segment selection"""
+        if self.use_full_audio_var.get():
+            # Disable time inputs
+            self.start_time_entry.configure(state="disabled")
+            self.end_time_entry.configure(state="disabled")
+            self.duration_info_label.configure(text="Duration: Full audio")
+        else:
+            # Enable time inputs
+            self.start_time_entry.configure(state="normal")
+            self.end_time_entry.configure(state="normal")
+            self.update_duration_info()
+        
+        # Update button states since we may need to re-transcribe
+        self.update_button_states()
+    
+    def update_duration_info(self):
+        """Update the duration info label based on selected time segment"""
+        if self.use_full_audio_var.get():
+            self.duration_info_label.configure(text="Duration: Full audio")
+        else:
+            try:
+                start = float(self.start_time_var.get() or 0)
+                end = float(self.end_time_var.get() or 0)
+                
+                if end > start:
+                    duration = end - start
+                    mins, secs = divmod(int(duration), 60)
+                    self.duration_info_label.configure(
+                        text=f"Duration: {mins:02d}:{secs:02d} ({duration:.1f}s)",
+                        text_color=("green", "lightgreen")
+                    )
+                else:
+                    self.duration_info_label.configure(
+                        text="Invalid range: End must be after Start",
+                        text_color=("red", "lightcoral")
+                    )
+            except ValueError:
+                self.duration_info_label.configure(
+                    text="Invalid input: Enter numbers only",
+                    text_color=("red", "lightcoral")
+                )
+    
+    def get_audio_duration(self, file_path):
+        """Get the duration of an audio/video file in seconds"""
+        try:
+            # Try with soundfile first
+            import soundfile as sf
+            info = sf.info(file_path)
+            return info.duration
+        except:
+            try:
+                # Try with ffmpeg as fallback
+                import subprocess
+                import json
+                
+                cmd = [
+                    'ffprobe', '-v', 'quiet',
+                    '-print_format', 'json',
+                    '-show_format',
+                    file_path
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    data = json.loads(result.stdout)
+                    duration = float(data['format']['duration'])
+                    return duration
+            except:
+                pass
+        
+        # If all methods fail, return None
+        return None
+    
+    def update_valid_range(self):
+        """Update the valid range label based on loaded audio file"""
+        if self.audio_file_path:
+            duration = self.get_audio_duration(self.audio_file_path)
+            if duration:
+                mins, secs = divmod(int(duration), 60)
+                self.valid_range_label.configure(
+                    text=f"Valid range: 0 - {duration:.1f}s ({mins:02d}:{secs:02d})",
+                    text_color=("blue", "lightblue")
+                )
+                
+                # Update end time to match duration if using full audio
+                if self.use_full_audio_var.get():
+                    self.end_time_var.set(str(int(duration)))
+                
+                # Store duration for validation
+                self.audio_duration = duration
+            else:
+                self.valid_range_label.configure(
+                    text="Valid range: Unable to determine",
+                    text_color=("orange", "darkorange")
+                )
+                self.audio_duration = None
+        else:
+            self.valid_range_label.configure(
+                text="Valid range: No file loaded",
+                text_color=("gray50", "gray50")
+            )
+            self.audio_duration = None
+    
+    def validate_time_segment(self):
+        """Validate the selected time segment"""
+        if self.use_full_audio_var.get():
+            return True
+        
+        try:
+            start = float(self.start_time_var.get() or 0)
+            end = float(self.end_time_var.get() or 0)
+            
+            if start < 0:
+                messagebox.showwarning("Invalid Time", "Start time cannot be negative")
+                return False
+            
+            if end <= start:
+                messagebox.showwarning("Invalid Time", "End time must be after start time")
+                return False
+            
+            if hasattr(self, 'audio_duration') and self.audio_duration:
+                if end > self.audio_duration:
+                    messagebox.showwarning("Invalid Time", f"End time exceeds audio duration ({self.audio_duration:.1f}s)")
+                    return False
+            
+            return True
+            
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Please enter valid numbers for time segment")
+            return False
+    
+    def get_time_segment_params(self):
+        """Get the time segment parameters for transcription"""
+        if self.use_full_audio_var.get():
+            return None, None
+        
+        try:
+            start = float(self.start_time_var.get() or 0)
+            end = float(self.end_time_var.get() or 0)
+            return start, end
+        except ValueError:
+            return None, None
+
+    # ... (continuing with all the other methods from your original code)
+    # I'll add the rest in the next part due to length
+
+def main():
+    """Main entry point"""
+    # Check for required packages
+    required_packages = {
+        'whisper': 'openai-whisper',
+        'anthropic': 'anthropic',
+        'customtkinter': 'customtkinter',
+        'sounddevice': 'sounddevice',
+        'soundfile': 'soundfile'
+    }
+    
+    missing_packages = []
+    for module, package in required_packages.items():
+        try:
+            __import__(module)
+        except ImportError:
+            missing_packages.append(package)
+    
+    if missing_packages:
+        print("Missing required packages. Please install them using:")
+        print(f"pip install {' '.join(missing_packages)}")
+        print("\nFor macOS, you may also need:")
+        print("brew install ffmpeg portaudio")  # Added portaudio
+        print("\nFor LaTeX PDF export (optional):")
+        print("- Windows: Install MiKTeX or TeX Live")
+        print("- macOS: Install MacTeX")
+        print("- Linux: sudo apt-get install texlive-full")
+        sys.exit(1)
+    
+    # Run the application
+    app = AudioAnalyzerApp()
+    app.mainloop()
+
+if __name__ == "__main__":
+    main()
