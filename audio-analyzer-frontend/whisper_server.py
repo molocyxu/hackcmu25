@@ -6,6 +6,33 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 from anthropic import Anthropic
 
+# Set environment variables before importing matplotlib and sklearn
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
+
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+from collections import Counter, defaultdict
+import re
+import base64
+import io
+
+# Import sklearn components with error handling
+try:
+    from sklearn.manifold import TSNE
+    from sklearn.cluster import KMeans
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    SKLEARN_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: sklearn not available: {e}")
+    SKLEARN_AVAILABLE = False
+
 MODEL = None
 MODEL_NAME = None
 
@@ -14,6 +41,186 @@ def load_model(model_name):
     if MODEL is None or MODEL_NAME != model_name:
         MODEL = whisper.load_model(model_name)
         MODEL_NAME = model_name
+
+def create_network_plot(text, num_clusters=5):
+    """
+    Create semantic network visualization based on text co-occurrence and clustering.
+    Returns base64 encoded image of the network plot.
+    """
+    try:
+        # Clean and preprocess text
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        if len(sentences) < 2:
+            raise ValueError("Text is too short for network analysis")
+        
+        # Tokenize and filter words
+        words = []
+        for sentence in sentences:
+            # Simple tokenization - remove punctuation and convert to lowercase
+            sentence_words = re.findall(r'\b[a-zA-Z]{3,}\b', sentence.lower())
+            words.extend(sentence_words)
+        
+        if len(set(words)) < 5:
+            raise ValueError("Not enough unique words for network analysis")
+        
+        # Calculate word frequencies and filter common words
+        word_freq = Counter(words)
+        # Remove very common words and keep top words
+        stopwords = {'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'}
+        filtered_words = [word for word in words if word not in stopwords and word_freq[word] >= 2]
+        
+        if len(set(filtered_words)) < 5:
+            # If after filtering we have too few words, use original words
+            filtered_words = [word for word in words if word_freq[word] >= 1]
+        
+        # Get most frequent words for the network
+        unique_words = list(set(filtered_words))
+        word_freq_filtered = {word: word_freq[word] for word in unique_words}
+        top_words = sorted(word_freq_filtered.items(), key=lambda x: x[1], reverse=True)[:min(100, len(unique_words))]
+        network_words = [word for word, freq in top_words]
+        
+        # Create co-occurrence matrix
+        co_occurrence = defaultdict(lambda: defaultdict(int))
+        window_size = 5
+        
+        for sentence in sentences:
+            sentence_words = [w for w in re.findall(r'\b[a-zA-Z]{3,}\b', sentence.lower()) if w in network_words]
+            
+            for i, word1 in enumerate(sentence_words):
+                for j in range(max(0, i-window_size), min(len(sentence_words), i+window_size+1)):
+                    if i != j:
+                        word2 = sentence_words[j]
+                        co_occurrence[word1][word2] += 1
+        
+        # Create NetworkX graph
+        G = nx.Graph()
+        
+        # Add nodes with word frequency as weight
+        for word in network_words:
+            G.add_node(word, weight=word_freq[word])
+        
+        # Add edges based on co-occurrence
+        for word1 in co_occurrence:
+            for word2 in co_occurrence[word1]:
+                if word1 != word2 and co_occurrence[word1][word2] > 0:
+                    G.add_edge(word1, word2, weight=co_occurrence[word1][word2])
+        
+        if len(G.nodes()) < 3:
+            raise ValueError("Not enough connected words for network visualization")
+        
+        # Simplified clustering and positioning to avoid segfaults
+        clusters = list(range(len(network_words)))  # Default: each word its own cluster
+        word_order = network_words
+        
+        # Use simple clustering if sklearn is available
+        if SKLEARN_AVAILABLE and len(network_words) > 3:
+            try:
+                # Simple frequency-based clustering as fallback
+                word_freqs = [word_freq[word] for word in network_words]
+                freq_array = np.array(word_freqs).reshape(-1, 1)
+                
+                n_clusters = min(num_clusters, len(network_words) // 2, 5)
+                if n_clusters > 1:
+                    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+                    clusters = kmeans.fit_predict(freq_array)
+                else:
+                    clusters = [0] * len(network_words)
+            except Exception as e:
+                print(f"Clustering failed, using simple assignment: {e}")
+                clusters = [i % num_clusters for i in range(len(network_words))]
+        else:
+            # Simple modulo-based clustering
+            clusters = [i % num_clusters for i in range(len(network_words))]
+        
+        # Use NetworkX spring layout (more stable than t-SNE)
+        try:
+            pos = nx.spring_layout(G, k=1, iterations=50, seed=42)
+        except Exception as e:
+            print(f"Spring layout failed, using circular: {e}")
+            pos = nx.circular_layout(G)
+        
+        # Create the plot with error handling
+        try:
+            plt.style.use('default')
+            fig, ax = plt.subplots(figsize=(12, 8), dpi=100)
+            
+            # Define colors for clusters
+            colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#FFB347']
+            
+            # Create cluster mapping
+            cluster_colors = {}
+            for i, word in enumerate(word_order):
+                cluster_id = clusters[i] if i < len(clusters) else 0
+                cluster_colors[word] = colors[cluster_id % len(colors)]
+            
+            # Draw nodes
+            node_colors = [cluster_colors.get(node, colors[0]) for node in G.nodes()]
+            node_sizes = [word_freq[node] * 100 + 300 for node in G.nodes()]
+            
+            nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=node_sizes, alpha=0.8, ax=ax)
+            
+            # Draw edges
+            edge_weights = [G[u][v]['weight'] for u, v in G.edges()]
+            if edge_weights:
+                max_weight = max(edge_weights) if edge_weights else 1
+                edge_widths = [max(0.5, w / max_weight * 3) for w in edge_weights]
+                nx.draw_networkx_edges(G, pos, width=edge_widths, alpha=0.6, edge_color='gray', ax=ax)
+            
+            # Draw labels
+            nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold', ax=ax)
+            
+            ax.set_title('Semantic Network Visualization', fontsize=16, fontweight='bold')
+            ax.axis('off')
+            plt.tight_layout()
+            
+            # Convert plot to base64 image
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+            img_buffer.seek(0)
+            img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+            
+            # Clean up
+            plt.close(fig)
+            plt.clf()
+            
+            return img_base64
+            
+        except Exception as plot_error:
+            print(f"Plotting error: {plot_error}")
+            # Create a simple fallback plot
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.text(0.5, 0.5, f'Network Analysis\n{len(network_words)} words\n{len(G.edges())} connections', 
+                   ha='center', va='center', fontsize=14, transform=ax.transAxes)
+            ax.set_title('Semantic Network (Simplified)', fontsize=16)
+            ax.axis('off')
+            
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+            img_buffer.seek(0)
+            img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+            plt.close(fig)
+            return img_base64
+        
+    except Exception as e:
+        print(f"Error creating network plot: {e}")
+        # Create minimal error plot
+        try:
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.text(0.5, 0.5, f'Network Generation Error\n{str(e)[:100]}...', 
+                   ha='center', va='center', fontsize=12, transform=ax.transAxes)
+            ax.set_title('Network Analysis Failed', fontsize=14)
+            ax.axis('off')
+            
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+            img_buffer.seek(0)
+            img_base64 = base64.b64encode(img_buffer.getvalue()).decode()
+            plt.close(fig)
+            return img_base64
+        except:
+            raise Exception(f"Network plot generation failed: {e}")
 
 class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -336,11 +543,22 @@ Text to translate:
                 clusters = data.get('clusters', 5)
                 print(f"[WHISPER_SERVER] /network clusters: {clusters}")
                 
-                # Placeholder: return dummy network info
+                if not text or len(text.strip()) < 50:
+                    raise ValueError("Text is too short for network analysis")
+                
+                # Generate network plot
+                img_base64 = create_network_plot(text, clusters)
+                
                 self.send_response(200)
                 self.end_headers()
-                resp = {"success": True, "message": "Network plot generated (dummy)", "clusters": clusters, "wordCount": len(text.split())}
-                print(f"[WHISPER_SERVER] Response: {resp}")
+                resp = {
+                    "success": True, 
+                    "message": "Network plot generated successfully", 
+                    "image": img_base64,
+                    "clusters": clusters, 
+                    "wordCount": len(text.split())
+                }
+                print(f"[WHISPER_SERVER] Response: Network plot generated with {len(text.split())} words")
                 self.wfile.write(json_module.dumps(resp).encode())
             except Exception as e:
                 print(f"[WHISPER_SERVER] Error in /network: {e}")

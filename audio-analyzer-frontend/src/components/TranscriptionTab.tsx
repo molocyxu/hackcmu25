@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AudioAnalyzerState, SearchResult } from "./AudioAnalyzer";
+import magIcon from "../../../assets/magnifying.png"
 
 interface TranscriptionTabProps {
   state: AudioAnalyzerState;
@@ -212,7 +213,8 @@ export function TranscriptionTab({ state, updateState }: TranscriptionTabProps) 
             size="sm"
             className="px-4"
           >
-            🔍 Search
+            <img src={magIcon.src} alt="MagnifyingGlass" width={16} height={16} />
+            Search
           </Button>
           <Button
             onClick={clearSearch}

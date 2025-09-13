@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { cleanTextForExport } from "@/lib/utils";
 import { AudioAnalyzerState } from "./AudioAnalyzer";
+import clipIcon from "../../../assets/clipboard.png";
+import uploadIcon from "../../../assets/upload.png";
 
 interface ToolbarButtonsProps {
   state: AudioAnalyzerState;
@@ -170,7 +172,8 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
           variant="outline"
           size="sm"
         >
-          📋 Copy Current Tab
+          <img src={clipIcon.src} alt="Clipboard" width={16} height={16} />
+          Copy Current Tab
         </Button>
         <Button
           onClick={() => exportText('transcription')}
@@ -178,7 +181,8 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
           size="sm"
           disabled={!state.transcribedText}
         >
-          💾 Export Transcription
+          <img src={uploadIcon.src} alt="Upload" width={16} height={16} />
+          Export Transcription
         </Button>
         <Button
           onClick={() => exportText('result')}
@@ -186,7 +190,8 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
           size="sm"
           disabled={state.currentHistoryIndex < 0}
         >
-          💾 Export Result
+          <img src={uploadIcon.src} alt="Upload" width={16} height={16} />
+          Export Result
         </Button>
       </div>
       <div className="flex items-center gap-2">

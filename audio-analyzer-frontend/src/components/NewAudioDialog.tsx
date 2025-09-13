@@ -2,6 +2,7 @@
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import React, { useRef, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { AudioAnalyzerState } from "./AudioAnalyzer";
 import { formatTime } from "@/lib/utils";
+import volumeIcon from "../../../assets/volume.png";
+import robotIcon from "../../../assets/robot.png";
+import globeIcon from "../../../assets/globe.png";
+import sparkleIcon from "../../../assets/sparkle.png";
+import fileIcon from "../../../assets/file.png";
+import microphoneIcon from "../../../assets/microphone.png";
+import stopIcon from "../../../assets/stop.png";
 
 interface NewAudioDialogProps {
   open: boolean;
@@ -315,7 +323,7 @@ export function NewAudioDialog({
           <Card className="gradient-card border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span className="text-primary">🎵</span>
+                <Image src={volumeIcon} alt="Audio" width={20} height={20} />
                 Audio
               </CardTitle>
             </CardHeader>
@@ -327,7 +335,8 @@ export function NewAudioDialog({
                   className="w-full mt-2"
                   variant="outline"
                 >
-                  📁 Choose Audio File
+                  <Image src={fileIcon} alt="File" width={20} height={20} />
+                  Choose Audio File
                 </Button>
                 <input
                   ref={fileInputRef}
@@ -349,10 +358,20 @@ export function NewAudioDialog({
                 <Label>Or Record Audio</Label>
                 <Button
                   onClick={handleRecordToggle}
-                  className="w-full mt-2"
+                  className="w-full mt-2 flex items-center justify-center gap-2"
                   variant={isRecording ? "destructive" : "outline"}
                 >
-                  {isRecording ? "⏹️ Stop Recording" : "🎤 Start Recording"}
+                  {isRecording ? (
+                    <>
+                      <Image src={stopIcon} alt="Stop" width={16} height={16} />
+                      Stop Recording
+                    </>
+                  ) : (
+                    <>
+                      <Image src={microphoneIcon} alt="Microphone" width={16} height={16} />
+                      Start Recording
+                    </>
+                  )}
                 </Button>
                 
                 {isRecording && (
@@ -426,7 +445,7 @@ export function NewAudioDialog({
           <Card className="gradient-card border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span className="text-primary">🤖</span>
+                <Image src={robotIcon} alt="Robot" width={20} height={20} />
                 Select Model
               </CardTitle>
             </CardHeader>
@@ -484,7 +503,7 @@ export function NewAudioDialog({
           <Card className="gradient-card border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span className="text-primary">✨</span>
+                <Image src={sparkleIcon} alt="Sparkle" width={20} height={20} />
                 Process with AI
                 <Badge variant="secondary" className="text-xs">Optional</Badge>
               </CardTitle>
@@ -589,7 +608,7 @@ export function NewAudioDialog({
           <Card className="gradient-card border-border/50">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span className="text-primary">🌐</span>
+                <Image src={globeIcon} alt="Globe" width={20} height={20} />
                 Translation
                 <Badge variant="secondary" className="text-xs">Optional</Badge>
               </CardTitle>

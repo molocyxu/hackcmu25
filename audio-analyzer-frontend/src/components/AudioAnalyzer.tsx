@@ -10,6 +10,16 @@ import { ProcessedResultTab } from "./ProcessedResultTab";
 import { ToolbarButtons } from "./ToolbarButtons";
 import { NewAudioDialog } from "./NewAudioDialog";
 import logoIcon from "@/app/logo.ico";
+import chartIcon from "../../../assets/chart.png";
+import webIcon from "../../../assets/spiderweb.png";
+import volumeIcon from "../../../assets/volume.png";
+import plusIcon from "../../../assets/plus.png";
+import globeIcon from "../../../assets/globe.png";
+import sparkleIcon from "../../../assets/sparkle.png";
+import micIcon from "../../../assets/microphone.png"
+import clipIcon from "../../../assets/clipboard.png"
+import mopIcon from "../../../assets/mop.png"
+import refreshIcon from "../../../assets/refresh.png"
 
 export interface WordTimestamp {
   word: string;
@@ -329,14 +339,19 @@ export function AudioAnalyzer() {
 
       const data = await response.json();
       
+      // Set the network plot image if provided
+      if (data.image) {
+        updateState({
+          networkPlotUrl: `data:image/png;base64,${data.image}`,
+        });
+      }
+      
       updateState({
         isProcessing: false,
         progress: 100,
         status: data.message || "Network plot generation completed",
         error: null,
       });
-
-      alert(`${data.message}\n\nFor full network plot functionality with Word2Vec embeddings and interactive visualization, please use the desktop application.`);
 
       setTimeout(() => {
         updateState({ progress: 0 });
@@ -476,10 +491,11 @@ export function AudioAnalyzer() {
           </div>
           <Button
             onClick={() => setIsNewAudioDialogOpen(true)}
-            className="btn-modern glow-primary hover:scale-105 transition-all text-lg px-8 py-3"
+            className="btn-modern glow-primary hover:scale-105 transition-all text-lg px-8 py-3 flex items-center gap-2"
             size="lg"
           >
-            ➕ New Audio
+            <Image src={plusIcon} alt="Plus" width={16} height={16} />
+            New Audio
           </Button>
         </div>
 
@@ -505,7 +521,7 @@ export function AudioAnalyzer() {
             <Card className="gradient-card border-border/50 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <span className="text-2xl">🎵</span>
+                  <Image src={volumeIcon} alt="Audio" width={24} height={24} />
                   <div>
                     <h3 className="font-semibold">{state.audioFileName}</h3>
                     <p className="text-sm text-muted-foreground">
@@ -522,21 +538,24 @@ export function AudioAnalyzer() {
                     disabled={!canTranscribe}
                     className="btn-primary"
                   >
-                    🎙️ Transcribe
+                    <Image src={micIcon} alt="Microphone" width={16} height={16} />
+                    Transcribe
                   </Button>
                   <Button
                     onClick={handleTranslate}
                     disabled={!canProcess}
-                    className="btn-primary"
+                    className="btn-primary flex items-center gap-2"
                   >
-                    🌐 Translate
+                    <Image src={globeIcon} alt="Globe" width={16} height={16} />
+                    Translate
                   </Button>
                   <Button
                     onClick={handleSummarize}
                     disabled={!canProcess}
                     className="btn-primary"
                   >
-                    📝 Summarize
+                    <Image src={clipIcon} alt="Clipboard" width={16} height={16} />
+                    Summarize
                   </Button>
                 </div>
               </div>
@@ -571,7 +590,9 @@ export function AudioAnalyzer() {
               <Card className="gradient-card border-border/50 flex flex-col">
                 <div className="p-4 border-b border-border/50">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <span>🕸️</span>
+                    <div className="flex justify-center mb-2">
+                      <Image src={webIcon} alt="Spiderweb" width={48} height={48} />
+                    </div>
                     Visualizations
                   </h3>
                 </div>
@@ -588,7 +609,8 @@ export function AudioAnalyzer() {
                           size="sm"
                           variant="outline"
                         >
-                          🧹 Clean
+                          <Image src={mopIcon} alt="Mop" width={16} height={16} />
+                          Clean
                         </Button>
                         <Button
                           onClick={handleNetworkPlot}
@@ -596,7 +618,8 @@ export function AudioAnalyzer() {
                           size="sm"
                           variant="outline"
                         >
-                          ↻ Generate
+                          <Image src={refreshIcon} alt="Refresh" width={16} height={16} />
+                          Generate
                         </Button>
                       </div>
                     </div>
@@ -609,7 +632,9 @@ export function AudioAnalyzer() {
                         />
                       ) : (
                         <div className="text-center text-muted-foreground">
-                          <div className="text-2xl mb-2">🕸️</div>
+                          <div className="flex justify-center mb-2">
+                            <Image src={webIcon} alt="Spiderweb" width={108} height={108} />
+                          </div>
                           <p className="text-sm">No network generated yet</p>
                           <p className="text-xs mt-1">Click Generate to create visualization</p>
                         </div>
@@ -626,8 +651,10 @@ export function AudioAnalyzer() {
                         disabled={!canProcess}
                         size="sm"
                         variant="outline"
+                        className="flex items-center gap-2"
                       >
-                        ✨ Generate
+                        <Image src={sparkleIcon} alt="Sparkle" width={14} height={14} />
+                        Generate
                       </Button>
                     </div>
                     
@@ -641,7 +668,9 @@ export function AudioAnalyzer() {
                         </div>
                       ) : (
                         <div className="text-center text-muted-foreground">
-                          <div className="text-2xl mb-2">📊</div>
+                          <div className="flex justify-center mb-2">
+                            <Image src={chartIcon} alt="Chart" width={108} height={108} />
+                          </div>
                           <p className="text-sm">No summary generated yet</p>
                           <p className="text-xs mt-1">Click Generate to create summary</p>
                         </div>
@@ -661,7 +690,9 @@ export function AudioAnalyzer() {
           /* Empty State */
           <Card className="gradient-card border-border/50 p-12 text-center">
             <div className="space-y-4">
-              <div className="text-6xl">🎵</div>
+              <div className="flex justify-center">
+                <Image src={volumeIcon} alt="Audio" width={64} height={64} />
+              </div>
               <h2 className="text-2xl font-semibold">No Audio Selected</h2>
               <p className="text-muted-foreground">
                 Click &quot;New Audio&quot; to get started with transcription and analysis
@@ -671,7 +702,10 @@ export function AudioAnalyzer() {
                 className="btn-modern glow-primary hover:scale-105 transition-all"
                 size="lg"
               >
-                ➕ New Audio
+                <div className="flex items-center gap-2">
+                  <Image src={plusIcon} alt="Plus" width={16} height={16} />
+                  New Audio
+                </div>
               </Button>
             </div>
           </Card>
