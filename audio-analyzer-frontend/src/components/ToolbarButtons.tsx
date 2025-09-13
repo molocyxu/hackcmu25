@@ -14,7 +14,7 @@ export function ToolbarButtons({ state, updateState }: ToolbarButtonsProps) {
     try {
       await navigator.clipboard.writeText(text);
       updateState({ status: "Copied to clipboard" });
-    } catch (err) {
+    } catch {
       updateState({ status: "Failed to copy to clipboard" });
     }
   };

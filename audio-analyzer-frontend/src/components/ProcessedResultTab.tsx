@@ -17,9 +17,9 @@ export function ProcessedResultTab({ state, updateState }: ProcessedResultTabPro
     ? state.processHistory[state.currentHistoryIndex]?.result || ""
     : "";
 
-  const currentPrompt = state.currentHistoryIndex >= 0
-    ? state.processHistory[state.currentHistoryIndex]?.prompt || state.customPrompt
-    : state.customPrompt;
+  // const currentPrompt = state.currentHistoryIndex >= 0
+  //   ? state.processHistory[state.currentHistoryIndex]?.prompt || state.customPrompt
+  //   : state.customPrompt;
 
   const navigatePrev = () => {
     if (state.currentHistoryIndex > 0) {
