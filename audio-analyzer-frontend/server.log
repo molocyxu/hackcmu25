@@ -1,0 +1,22 @@
+
+> audio-analyzer-frontend@0.1.0 dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.3 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://172.30.0.2:3000
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+ ✓ Ready in 952ms
+ ○ Compiling /api/model ...
+ ✓ Compiled /api/model in 1468ms
+ GET /api/model?model=base 200 in 3468ms
+ POST /api/model 200 in 2545ms
+ GET /api/model?model=tiny 200 in 1759ms
+ POST /api/model 200 in 4244ms
+ GET /api/model?model=tiny 200 in 1658ms
