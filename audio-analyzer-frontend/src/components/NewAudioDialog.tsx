@@ -298,6 +298,15 @@ export function NewAudioDialog({
       targetLanguage,
       translationStyle,
       preserveFormatting,
+      // Time segment features
+      useFullAudio: useFullAudio,
+      startTime: parseFloat(startTime) || 0,
+      endTime: parseFloat(endTime) || 0,
+      audioDuration: audioDuration,
+      // Word timestamps for search
+      wordTimestamps: [],
+      searchTerm: "",
+      searchResults: [],
     });
     onCreateAudio();
     onOpenChange(false);
