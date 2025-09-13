@@ -98,13 +98,13 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/workspace/venv/bin/python', ['-c', pythonScript, model], {
+    const python = spawn('/usr/bin/python3', ['-c', pythonScript, model], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: '/workspace',
       env: {
         ...process.env,
-        PATH: '/workspace/venv/bin:' + process.env.PATH,
-        VIRTUAL_ENV: '/workspace/venv'
+        PATH: '/home/ubuntu/.local/bin:' + process.env.PATH,
+        PYTHONPATH: '/home/ubuntu/.local/lib/python3.13/site-packages'
       }
     });
 
@@ -185,13 +185,13 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('/workspace/venv/bin/python', ['-c', pythonScript, model], {
+    const python = spawn('/usr/bin/python3', ['-c', pythonScript, model], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: '/workspace',
       env: {
         ...process.env,
-        PATH: '/workspace/venv/bin:' + process.env.PATH,
-        VIRTUAL_ENV: '/workspace/venv'
+        PATH: '/home/ubuntu/.local/bin:' + process.env.PATH,
+        PYTHONPATH: '/home/ubuntu/.local/lib/python3.13/site-packages'
       }
     });
 
