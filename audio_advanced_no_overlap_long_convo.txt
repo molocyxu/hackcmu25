@@ -1,0 +1,34 @@
+Speaker Diarization Results (Advanced Multi-Algorithm):
+Source File: NewRecording97.wav
+Analysis Method: WebRTC VAD + LPC/MFCC + Agglomerative Clustering
+Expected Speakers: 3
+----------------------------------------
+[000.3s -> 004.5s] SPEAKER_01
+[004.5s -> 005.7s] SPEAKER_00
+[005.7s -> 008.7s] SPEAKER_01
+[008.7s -> 015.3s] SPEAKER_00
+[015.3s -> 022.2s] SPEAKER_01
+[022.2s -> 022.8s] SPEAKER_00
+[022.8s -> 023.4s] SPEAKER_01
+[023.4s -> 025.2s] SPEAKER_00
+[025.2s -> 026.4s] SPEAKER_02
+[026.4s -> 027.6s] SPEAKER_00
+[027.6s -> 028.8s] SPEAKER_02
+[028.8s -> 030.0s] SPEAKER_00
+[030.0s -> 038.4s] SPEAKER_01
+[038.4s -> 042.6s] SPEAKER_00
+[042.6s -> 045.4s] SPEAKER_01
+[045.4s -> 046.6s] SPEAKER_00
+[046.6s -> 050.2s] SPEAKER_01
+[050.2s -> 053.2s] SPEAKER_02
+[053.2s -> 058.4s] SPEAKER_01
+[058.4s -> 060.2s] SPEAKER_00
+[060.2s -> 060.8s] SPEAKER_01
+[060.8s -> 061.4s] SPEAKER_02
+[061.4s -> 066.2s] SPEAKER_01
+[066.2s -> 069.2s] SPEAKER_00
+[069.2s -> 071.0s] SPEAKER_01
+[071.0s -> 074.6s] SPEAKER_00
+[074.6s -> 075.2s] SPEAKER_01
+[075.2s -> 077.0s] SPEAKER_02
+[077.0s -> 077.6s] SPEAKER_01

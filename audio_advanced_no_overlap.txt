@@ -1,0 +1,10 @@
+Speaker Diarization Results (Advanced Multi-Algorithm):
+Source File: Audio.wav
+Analysis Method: WebRTC VAD + LPC/MFCC + Agglomerative Clustering
+Expected Speakers: 2
+----------------------------------------
+[000.6s -> 002.4s] SPEAKER_01
+[002.4s -> 003.6s] SPEAKER_00
+[003.6s -> 005.4s] SPEAKER_01
+[005.4s -> 007.8s] SPEAKER_00
+[007.8s -> 009.0s] SPEAKER_01
