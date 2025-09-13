@@ -1,4 +1,0 @@
-Speaker Diarization Results:
-Source File: Audio.wav
-----------------------------------------
-[00.0s -> 09.0s] SPEAKER_00
