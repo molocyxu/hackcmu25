@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
+// import { spawn } from 'child_process';
+// import path from 'path';
+// import fs from 'fs';
 import { spawnPython } from '@/lib/python-env';
 
 export const runtime = 'nodejs'; // ensure NOT edge
