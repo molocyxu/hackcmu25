@@ -7,7 +7,7 @@ async function translateWithWhisperServer(
   translationStyle: string,
   preserveFormatting: boolean,
   outputFormat: string
-): Promise<unknown> {
+): Promise<any> {
   const res = await fetch('http://localhost:8765/translate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       translationStyle,
       preserveFormatting,
       outputFormat
-    ) as { success: boolean; error?: string; translation?: string };
+    );
     
     if (!result.success) {
       throw new Error(result.error || 'Translation failed');

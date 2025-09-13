@@ -28,8 +28,8 @@ export function NewAudioDialog({
   onCreateAudio 
 }: NewAudioDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // const [generateNetworkPlot, setGenerateNetworkPlot] = useState(false);
-  // const [cleanText, setCleanText] = useState(false);
+  const [generateNetworkPlot, setGenerateNetworkPlot] = useState(false);
+  const [cleanText, setCleanText] = useState(false);
   
   // Local state for dialog
   const [localAudioFile, setLocalAudioFile] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export function NewAudioDialog({
       setLocalApiKey("");
       setLocalWordLimit(500);
       setLocalOutputFormat("Markdown");
-      // setGenerateNetworkPlot(false);
+      setGenerateNetworkPlot(false);
       setIsRecording(false);
       setRecordingDuration(0);
     }
@@ -298,15 +298,6 @@ export function NewAudioDialog({
       targetLanguage,
       translationStyle,
       preserveFormatting,
-      // Time segment features
-      useFullAudio: useFullAudio,
-      startTime: parseFloat(startTime) || 0,
-      endTime: parseFloat(endTime) || 0,
-      audioDuration: audioDuration,
-      // Word timestamps for search
-      wordTimestamps: [],
-      searchTerm: "",
-      searchResults: [],
     });
     onCreateAudio();
     onOpenChange(false);

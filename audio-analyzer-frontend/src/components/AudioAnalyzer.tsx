@@ -34,15 +34,6 @@ export interface AudioAnalyzerState {
   targetLanguage: string;
   translationStyle: string;
   preserveFormatting: boolean;
-  // Time segment features
-  useFullAudio: boolean;
-  startTime: number;
-  endTime: number;
-  audioDuration: number | null;
-  // Word timestamps for search
-  wordTimestamps: Array<{ word: string; start: number; end: number }>;
-  searchTerm: string;
-  searchResults: Array<{ word: string; start: number; end: number }>;
 }
 
 export function AudioAnalyzer() {
@@ -71,15 +62,6 @@ export function AudioAnalyzer() {
     targetLanguage: "None",
     translationStyle: "Natural",
     preserveFormatting: true,
-    // Time segment features
-    useFullAudio: true,
-    startTime: 0,
-    endTime: 0,
-    audioDuration: null,
-    // Word timestamps for search
-    wordTimestamps: [],
-    searchTerm: "",
-    searchResults: [],
   });
 
   const [isNewAudioDialogOpen, setIsNewAudioDialogOpen] = useState(false);
@@ -124,10 +106,6 @@ export function AudioAnalyzer() {
         body: JSON.stringify({
           audioPath: realFilePath,
           model: state.whisperModel,
-          useFullAudio: state.useFullAudio,
-          startTime: state.startTime,
-          endTime: state.endTime,
-          includeWordTimestamps: true,
         }),
       });
 
@@ -139,8 +117,6 @@ export function AudioAnalyzer() {
       
       updateState({
         transcribedText: data.text,
-        wordTimestamps: data.wordTimestamps || [],
-        audioDuration: data.audioDuration || null,
         isTranscribing: false,
         progress: 100,
         status: "Transcription completed",
@@ -305,25 +281,17 @@ export function AudioAnalyzer() {
       const data = await response.json();
       
       updateState({
-        networkPlotUrl: data.plotUrl || null,
         isProcessing: false,
         progress: 100,
         status: data.message || "Network plot generation completed",
         error: null,
       });
 
-      if (data.plotUrl) {
-        // Successfully generated plot
-        setTimeout(() => {
-          updateState({ progress: 0 });
-        }, 2000);
-      } else {
-        // Show message about desktop app for full functionality
-        alert(`${data.message}\n\nFor full network plot functionality with Word2Vec embeddings and interactive visualization, please use the desktop application.`);
-        setTimeout(() => {
-          updateState({ progress: 0 });
-        }, 2000);
-      }
+      alert(`${data.message}\n\nFor full network plot functionality with Word2Vec embeddings and interactive visualization, please use the desktop application.`);
+
+      setTimeout(() => {
+        updateState({ progress: 0 });
+      }, 2000);
       
     } catch (error) {
       console.error('Network plot error:', error);
@@ -472,31 +440,6 @@ export function AudioAnalyzer() {
     }
   };
 
-  const handleSearchWord = () => {
-    if (!state.searchTerm.trim() || !state.wordTimestamps.length) {
-      updateState({ searchResults: [] });
-      return;
-    }
-
-    const searchTerm = state.searchTerm.toLowerCase().trim();
-    const matches = state.wordTimestamps.filter(wordInfo => 
-      wordInfo.word.toLowerCase().includes(searchTerm)
-    );
-
-    // Remove duplicates based on timestamp
-    const uniqueMatches = matches.filter((match, index, self) => 
-      index === self.findIndex(m => Math.abs(m.start - match.start) < 0.1)
-    );
-
-    updateState({ searchResults: uniqueMatches.slice(0, 50) }); // Limit to 50 results
-  };
-
-  const formatTimestamp = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const canTranscribe = state.audioFilePath && state.modelLoaded && !state.isTranscribing;
   const canProcess = state.transcribedText && state.apiKey && !state.isProcessing;
 
@@ -550,11 +493,6 @@ export function AudioAnalyzer() {
                     <p className="text-sm text-muted-foreground">
                       Model: {state.whisperModel} • {state.modelLoaded ? "Ready" : "Not loaded"}
                     </p>
-                    {state.audioDuration && (
-                      <p className="text-xs text-muted-foreground">
-                        Duration: {formatTimestamp(state.audioDuration)}
-                      </p>
-                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -581,60 +519,6 @@ export function AudioAnalyzer() {
                   </Button>
                 </div>
               </div>
-              
-              {/* Time Segment Controls */}
-              <div className="mt-4 p-3 bg-muted/20 rounded-lg">
-                <div className="flex items-center gap-4 mb-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={state.useFullAudio}
-                      onChange={(e) => updateState({ 
-                        useFullAudio: e.target.checked,
-                        startTime: 0,
-                        endTime: state.audioDuration || 0
-                      })}
-                      className="rounded"
-                    />
-                    <span className="text-sm font-medium">Use full audio</span>
-                  </label>
-                </div>
-                
-                {!state.useFullAudio && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium mb-1">Start (seconds)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max={state.audioDuration || undefined}
-                        value={state.startTime}
-                        onChange={(e) => updateState({ startTime: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium mb-1">End (seconds)</label>
-                      <input
-                        type="number"
-                        min={state.startTime}
-                        max={state.audioDuration || undefined}
-                        value={state.endTime}
-                        onChange={(e) => updateState({ endTime: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                        placeholder={state.audioDuration?.toString() || "0"}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {!state.useFullAudio && state.startTime < state.endTime && (
-                  <p className="text-xs text-green-600 mt-2">
-                    Segment duration: {formatTimestamp(state.endTime - state.startTime)}
-                  </p>
-                )}
-              </div>
               {state.progress > 0 && (
                 <div className="mt-4">
                   <div className="w-full bg-muted rounded-full h-2">
@@ -654,12 +538,7 @@ export function AudioAnalyzer() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[600px]">
               {/* Left: Transcription */}
               <Card className="gradient-card border-border/50">
-                <TranscriptionTab 
-                  state={state} 
-                  updateState={updateState}
-                  onSearchWord={handleSearchWord}
-                  formatTimestamp={formatTimestamp}
-                />
+                <TranscriptionTab state={state} updateState={updateState} />
               </Card>
 
               {/* Center: Processed Result */}
