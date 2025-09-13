@@ -334,6 +334,114 @@ export function Sidebar({ state, updateState }: SidebarProps) {
   const canTranscribe = state.audioFilePath && state.modelLoaded && !state.isTranscribing;
   const canProcess = state.transcribedText && state.apiKey && !state.isProcessing;
 
+  const handleCleanText = async () => {
+    if (!state.transcribedText || !state.apiKey) return;
+    
+    updateState({
+      isProcessing: true,
+      progress: 30,
+      status: "Cleaning transcription...",
+    });
+
+    try {
+      const response = await fetch('/api/clean', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: state.transcribedText,
+          apiKey: state.apiKey,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Text cleaning failed');
+      }
+
+      const data = await response.json();
+      
+      updateState({
+        transcribedText: data.result,
+        isProcessing: false,
+        progress: 100,
+        status: "Text cleaned successfully",
+        error: null,
+      });
+
+      // Reset progress after a delay
+      setTimeout(() => {
+        updateState({ progress: 0 });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Clean text error:', error);
+      updateState({
+        isProcessing: false,
+        progress: 0,
+        status: "Text cleaning failed",
+        error: error instanceof Error ? error.message : "Text cleaning failed",
+      });
+    }
+  };
+
+  const handleNetworkPlot = async () => {
+    if (!state.transcribedText || !state.apiKey) return;
+    
+    // Ask user for number of clusters
+    const clusters = prompt("Enter number of clusters (2-10):", "5");
+    const numClusters = clusters ? Math.max(2, Math.min(10, parseInt(clusters) || 5)) : 5;
+    
+    updateState({
+      isProcessing: true,
+      progress: 30,
+      status: "Generating network plot...",
+    });
+
+    try {
+      const response = await fetch('/api/network', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: state.transcribedText,
+          clusters: numClusters,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network plot generation failed');
+      }
+
+      const data = await response.json();
+      
+      updateState({
+        isProcessing: false,
+        progress: 100,
+        status: data.message || "Network plot generation completed",
+        error: null,
+      });
+
+      // Show information about the network plot feature
+      alert(`${data.message}\n\nFor full network plot functionality with Word2Vec embeddings and interactive visualization, please use the desktop application.`);
+
+      // Reset progress after a delay
+      setTimeout(() => {
+        updateState({ progress: 0 });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Network plot error:', error);
+      updateState({
+        isProcessing: false,
+        progress: 0,
+        status: "Network plot generation failed",
+        error: error instanceof Error ? error.message : "Network plot generation failed",
+      });
+    }
+  };
+
   return (
     <ScrollArea className="h-full">
       <div className="p-6 space-y-6">
@@ -467,6 +575,26 @@ export function Sidebar({ state, updateState }: SidebarProps) {
               className="w-full btn-modern glow-primary hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
             >
               🎙️ Transcribe
+            </Button>
+
+            <Button
+              onClick={handleCleanText}
+              disabled={!canProcess}
+              className="w-full btn-modern hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+              variant="outline"
+              size="sm"
+            >
+              🧹 Clean Text
+            </Button>
+
+            <Button
+              onClick={handleNetworkPlot}
+              disabled={!canProcess}
+              className="w-full btn-modern hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+              variant="outline"
+              size="sm"
+            >
+              🕸️ Generate Network Plot
             </Button>
           </CardContent>
         </Card>
