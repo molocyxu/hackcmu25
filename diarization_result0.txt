@@ -1,49 +1,10 @@
 Speaker Diarization Results (Fourier Transform Method):
-Source File: NewRecording97.wav
+Source File: Audio.wav
 Analysis Method: Spectral Feature Clustering
-Number of Speakers: 3
+Number of Speakers: 2
 ----------------------------------------
-[001.9s -> 004.0s] SPEAKER_01
-[004.3s -> 008.3s] SPEAKER_01
-[008.4s -> 009.4s] SPEAKER_02
-[009.6s -> 010.8s] SPEAKER_01
-[010.9s -> 011.7s] SPEAKER_01
-[011.8s -> 013.5s] SPEAKER_02
-[013.7s -> 016.4s] SPEAKER_01
-[016.6s -> 019.2s] SPEAKER_01
-[019.4s -> 020.1s] SPEAKER_01
-[021.0s -> 023.4s] SPEAKER_01
-[023.6s -> 025.5s] SPEAKER_02
-[025.6s -> 026.9s] SPEAKER_01
-[027.5s -> 028.2s] SPEAKER_01
-[028.4s -> 029.7s] SPEAKER_01
-[029.8s -> 030.4s] SPEAKER_00
-[031.4s -> 031.9s] SPEAKER_00
-[032.0s -> 033.0s] SPEAKER_00
-[033.1s -> 035.2s] SPEAKER_01
-[035.9s -> 037.0s] SPEAKER_01
-[037.2s -> 038.5s] SPEAKER_01
-[038.8s -> 040.0s] SPEAKER_01
-[040.3s -> 041.6s] SPEAKER_01
-[042.0s -> 042.6s] SPEAKER_01
-[043.8s -> 044.5s] SPEAKER_01
-[044.7s -> 045.8s] SPEAKER_01
-[046.0s -> 047.4s] SPEAKER_01
-[047.8s -> 049.2s] SPEAKER_01
-[049.4s -> 050.1s] SPEAKER_01
-[050.2s -> 051.8s] SPEAKER_02
-[051.9s -> 053.1s] SPEAKER_01
-[053.2s -> 054.1s] SPEAKER_00
-[054.3s -> 055.1s] SPEAKER_02
-[055.2s -> 057.3s] SPEAKER_02
-[057.4s -> 061.0s] SPEAKER_02
-[061.3s -> 062.4s] SPEAKER_02
-[062.7s -> 063.5s] SPEAKER_00
-[063.6s -> 064.3s] SPEAKER_01
-[064.4s -> 065.4s] SPEAKER_00
-[065.5s -> 066.3s] SPEAKER_02
-[066.5s -> 068.2s] SPEAKER_01
-[068.3s -> 071.2s] SPEAKER_01
-[071.2s -> 071.8s] SPEAKER_01
-[072.3s -> 074.8s] SPEAKER_01
-[075.0s -> 077.1s] SPEAKER_02
+[000.1s -> 001.7s] SPEAKER_01
+[003.0s -> 003.6s] SPEAKER_01
+[003.7s -> 005.2s] SPEAKER_01
+[005.5s -> 006.5s] SPEAKER_01
+[007.8s -> 008.8s] SPEAKER_01

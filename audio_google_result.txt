@@ -1,0 +1,7 @@
+Speaker Diarization Results (Google Cloud Speech-to-Text):
+Source File: Audio.wav
+Analysis Method: Google Cloud Speaker Diarization
+Expected Speakers: 2
+Transcript: 
+----------------------------------------
+[000.0s -> 008.9s] SPEAKER_01

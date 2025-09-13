@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import librosa
-from scipy.signal import spectrogram
+from scipy.signal import spectrogram, find_peaks
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import pdist, squareform
 from scipy.ndimage import binary_erosion, binary_dilation, median_filter
@@ -96,28 +96,121 @@ def extract_spectral_features(audio, sr, window_size=2.0, hop_size=0.5):
         high_freq_energy = np.sum(frame_mag[high_freq_idx:])
         high_freq_ratio = high_freq_energy / (total_freq_energy + 1e-10)
         
-        # Time-domain features
+        # Advanced acoustic features for speaker recognition (from research literature)
+        
+        # 1. Weighted Average Delta Energy (ΔE)
         if len(frame_audio) > 1:
-            # Zero crossing rate
-            zcr = np.mean(librosa.feature.zero_crossing_rate(frame_audio[np.newaxis, :]))
-            
-            # Energy
+            energy_sequence = frame_audio ** 2
+            delta_energy = np.diff(energy_sequence)
+            weights = np.arange(1, len(delta_energy) + 1) / len(delta_energy)  # Linear weights
+            weighted_delta_energy = np.sum(weights * np.abs(delta_energy)) / np.sum(weights)
+        else:
+            weighted_delta_energy = 0
+        
+        # 2. LPC Spectrum Flatness (F_LPC)
+        try:
+            from scipy.signal import lfilter
+            # Linear Predictive Coding analysis
+            if len(frame_audio) > 20:  # Need sufficient samples for LPC
+                # Autocorrelation method for LPC coefficients
+                autocorr = np.correlate(frame_audio, frame_audio, mode='full')
+                autocorr = autocorr[len(autocorr)//2:]
+                
+                # Solve Yule-Walker equations for LPC coefficients (order 12)
+                lpc_order = min(12, len(autocorr) - 1)
+                if lpc_order > 0:
+                    R = np.array([autocorr[abs(i-j)] for i in range(lpc_order) for j in range(lpc_order)]).reshape(lpc_order, lpc_order)
+                    r = autocorr[1:lpc_order+1]
+                    try:
+                        lpc_coeffs = np.linalg.solve(R, r)
+                        
+                        # Compute LPC spectrum
+                        w, h = np.meshgrid(np.arange(len(lpc_coeffs)), np.linspace(0, np.pi, 256))
+                        lpc_spectrum = 1 / np.abs(1 + np.sum(lpc_coeffs * np.exp(-1j * w * np.arange(1, len(lpc_coeffs)+1)[:, np.newaxis]), axis=0))
+                        
+                        # Spectrum flatness (geometric mean / arithmetic mean)
+                        geometric_mean = np.exp(np.mean(np.log(lpc_spectrum + 1e-10)))
+                        arithmetic_mean = np.mean(lpc_spectrum)
+                        lpc_flatness = geometric_mean / (arithmetic_mean + 1e-10)
+                    except:
+                        lpc_flatness = 0
+                else:
+                    lpc_flatness = 0
+            else:
+                lpc_flatness = 0
+        except:
+            lpc_flatness = 0
+        
+        # 3. FFT Spectrum Flatness (F_FFT) - already computed as spectral_flatness
+        fft_flatness = spectral_flatness
+        
+        # 4. Zero Crossing Rate (R_ZC)
+        if len(frame_audio) > 1:
+            zero_crossing_rate = np.mean(librosa.feature.zero_crossing_rate(frame_audio[np.newaxis, :]))
+        else:
+            zero_crossing_rate = 0
+        
+        # 5. Harmonicity (H) - measure of how harmonic the signal is
+        if len(frame_audio) > sr // 50:  # At least 20ms for pitch analysis
+            try:
+                # Autocorrelation-based harmonicity
+                autocorr_full = np.correlate(frame_audio, frame_audio, mode='full')
+                autocorr_full = autocorr_full[len(autocorr_full)//2:]
+                
+                # Find fundamental period
+                min_period = int(sr / 400)  # 400 Hz max
+                max_period = int(sr / 80)   # 80 Hz min
+                
+                if max_period < len(autocorr_full):
+                    autocorr_range = autocorr_full[min_period:max_period]
+                    if len(autocorr_range) > 0:
+                        max_autocorr = np.max(autocorr_range)
+                        harmonicity = max_autocorr / (autocorr_full[0] + 1e-10)  # Normalized by zero-lag
+                    else:
+                        harmonicity = 0
+                else:
+                    harmonicity = 0
+            except:
+                harmonicity = 0
+        else:
+            harmonicity = 0
+        
+        # 6. Mid-Level Crossing Rate (R_MC)
+        if len(frame_audio) > 1:
+            # Mid-level is typically the median or mean
+            mid_level = np.median(frame_audio)
+            crossings = np.where(np.diff(np.sign(frame_audio - mid_level)))[0]
+            mid_crossing_rate = len(crossings) / (len(frame_audio) / sr)  # Crossings per second
+        else:
+            mid_crossing_rate = 0
+        
+        # 7. Peak and Valley Count Rate (R_PV)
+        if len(frame_audio) > 2:
+            # Find local maxima and minima
+            peaks, _ = find_peaks(frame_audio, height=np.std(frame_audio) * 0.1)
+            valleys, _ = find_peaks(-frame_audio, height=np.std(frame_audio) * 0.1)
+            peak_valley_rate = (len(peaks) + len(valleys)) / (len(frame_audio) / sr)  # Per second
+        else:
+            peak_valley_rate = 0
+        
+        # Additional basic features for completeness
+        if len(frame_audio) > 1:
+            # RMS Energy
             rms_energy = np.sqrt(np.mean(frame_audio ** 2))
             
-            # Autocorrelation-based pitch estimation (simplified)
+            # Simple pitch estimation using autocorrelation
             autocorr = np.correlate(frame_audio, frame_audio, mode='full')
             autocorr = autocorr[len(autocorr)//2:]
             
             # Find peak in autocorrelation (excluding lag 0)
             min_lag = int(sr / 400)  # 400 Hz max
             max_lag = int(sr / 80)   # 80 Hz min
-            if max_lag < len(autocorr):
+            if max_lag < len(autocorr) and len(autocorr) > min_lag:
                 peak_idx = np.argmax(autocorr[min_lag:max_lag]) + min_lag
                 pitch_freq = sr / peak_idx if peak_idx > 0 else 0
             else:
                 pitch_freq = 0
         else:
-            zcr = 0
             rms_energy = 0
             pitch_freq = 0
         
@@ -139,14 +232,24 @@ def extract_spectral_features(audio, sr, window_size=2.0, hop_size=0.5):
             mfcc_features = np.zeros(13)
             delta_mfcc_features = np.zeros(13)
         
-        # Combine all features - emphasize speaker-discriminative features
+        # Combine all features - emphasize research-based speaker-discriminative features
+        # Total dimensions: 5 + 2 + 4 + 3 + 2 + 13 + 13 = 42 features
         feature_vector = np.concatenate([
-            # Spectral features (weighted less)
-            0.5 * np.array([spectral_centroid, spectral_rolloff, spectral_bandwidth, spectral_flatness, spectral_slope]),
-            0.5 * np.array([low_freq_ratio, high_freq_ratio, zcr, rms_energy, pitch_freq]),
-            # MFCC features (weighted more heavily for speaker discrimination)
-            2.0 * mfcc_features,
-            1.5 * delta_mfcc_features
+            # Basic spectral features (moderate weight) - 5 features
+            0.7 * np.array([spectral_centroid, spectral_rolloff, spectral_bandwidth, spectral_flatness, spectral_slope]),
+            # Frequency band features - 2 features  
+            0.7 * np.array([low_freq_ratio, high_freq_ratio]),
+            
+            # Advanced acoustic features from research literature (high weight) - 7 features
+            1.5 * np.array([weighted_delta_energy, lpc_flatness, fft_flatness, zero_crossing_rate,
+                           harmonicity, mid_crossing_rate, peak_valley_rate]),
+            
+            # Traditional energy and pitch features - 2 features
+            0.8 * np.array([rms_energy, pitch_freq]),
+            
+            # MFCC features (highest weight for speaker discrimination) - 26 features
+            2.0 * mfcc_features,        # 13 features
+            1.5 * delta_mfcc_features   # 13 features
         ])
         
         # Handle NaN and infinite values
@@ -428,6 +531,9 @@ def create_segments_from_voice_breaks(audio, sr, speaker_labels, voice_times, vo
     if len(voice_segments) == 0 or len(speaker_labels) == 0:
         return segments
     
+    print(f"   - Debug: Processing {len(voice_segments)} voice segments with {len(speaker_labels)} speaker labels")
+    print(f"   - Debug: Speaker label distribution: {np.bincount(speaker_labels)}")
+    
     # Create a mapping from time to speaker label
     time_to_speaker = {}
     for i, time in enumerate(voice_times):
@@ -435,7 +541,7 @@ def create_segments_from_voice_breaks(audio, sr, speaker_labels, voice_times, vo
             time_to_speaker[time] = speaker_labels[i]
     
     # Process each voice segment
-    for voice_start, voice_end in voice_segments:
+    for seg_idx, (voice_start, voice_end) in enumerate(voice_segments):
         # Find speaker labels within this voice segment
         segment_speakers = []
         segment_times = []
@@ -448,6 +554,8 @@ def create_segments_from_voice_breaks(audio, sr, speaker_labels, voice_times, vo
         if len(segment_speakers) == 0:
             continue
         
+        print(f"   - Debug: Voice segment {seg_idx} [{voice_start:.1f}s-{voice_end:.1f}s]: speakers {set(segment_speakers)}")
+        
         # Group consecutive frames of the same speaker within this voice segment
         if len(segment_speakers) > 0:
             current_speaker = segment_speakers[0]
@@ -457,11 +565,13 @@ def create_segments_from_voice_breaks(audio, sr, speaker_labels, voice_times, vo
                 if segment_speakers[i] != current_speaker:
                     # Speaker change detected - create segment for previous speaker
                     segments.append((segment_start_time, segment_times[i-1], f"SPEAKER_{current_speaker:02d}"))
+                    print(f"   - Debug: Created segment [{segment_start_time:.1f}s-{segment_times[i-1]:.1f}s] SPEAKER_{current_speaker:02d}")
                     segment_start_time = segment_times[i]
                     current_speaker = segment_speakers[i]
             
             # Add the final segment in this voice segment
             segments.append((segment_start_time, voice_end, f"SPEAKER_{current_speaker:02d}"))
+            print(f"   - Debug: Created final segment [{segment_start_time:.1f}s-{voice_end:.1f}s] SPEAKER_{current_speaker:02d}")
     
     # Merge very short segments that are likely noise or mis-classifications
     merged_segments = []
@@ -473,6 +583,7 @@ def create_segments_from_voice_breaks(audio, sr, speaker_labels, voice_times, vo
             # Merge with previous segment if it exists
             prev_start, prev_end, prev_speaker = merged_segments[-1]
             merged_segments[-1] = (prev_start, end, prev_speaker)
+            print(f"   - Debug: Merged short segment, new segment [{prev_start:.1f}s-{end:.1f}s] {prev_speaker}")
     
     return merged_segments
 
@@ -682,6 +793,27 @@ def run_diarization(audio_file: str, output_file: str = "diarization_result0.txt
 
         print(f"✅ Diarization complete! Results saved to '{output_file}'")
         print(f"   - Identified {len(segments)} speaking segments")
+        
+        # Analysis summary
+        speaker_durations = {}
+        total_speech_time = 0
+        for start, end, speaker in segments:
+            duration = end - start
+            total_speech_time += duration
+            if speaker not in speaker_durations:
+                speaker_durations[speaker] = 0
+            speaker_durations[speaker] += duration
+        
+        print(f"   - Total speech time: {total_speech_time:.1f}s")
+        for speaker, duration in sorted(speaker_durations.items()):
+            percentage = (duration / total_speech_time) * 100
+            print(f"   - {speaker}: {duration:.1f}s ({percentage:.1f}%)")
+        
+        # Check for alternating pattern (for validation)
+        speaker_sequence = [seg[2] for seg in segments]
+        transitions = len([i for i in range(1, len(speaker_sequence)) if speaker_sequence[i] != speaker_sequence[i-1]])
+        print(f"   - Speaker transitions: {transitions}")
+        print(f"   - Average segment duration: {total_speech_time/len(segments):.1f}s")
 
         # Optional: Create a visualization
         try:
