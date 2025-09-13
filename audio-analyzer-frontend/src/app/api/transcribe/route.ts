@@ -110,7 +110,7 @@ if __name__ == "__main__":
     print(json.dumps(result))
 `;
 
-    const python = spawn('python3', ['-c', pythonScript, audioPath, model], {
+    const python = spawn('/workspace/venv/bin/python3', ['-c', pythonScript, audioPath, model], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
